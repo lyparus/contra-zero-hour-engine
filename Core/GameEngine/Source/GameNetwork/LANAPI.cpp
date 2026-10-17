@@ -37,7 +37,7 @@
 #include "GameLogic/GameLogic.h"
 
 
-static const UnsignedShort lobbyPort = 8086; ///< This is the UDP port used by all LANAPI communication
+static const UnsignedShort lobbyPort = 8087; /* Contra uses 8087 (stock: 8086) */ ///< This is the UDP port used by all LANAPI communication
 
 AsciiString GetMessageTypeString(UnsignedInt type);
 

@@ -38,6 +38,9 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/BuildVersion.h
 
 if(MSVC)
     target_link_options(z_generals PRIVATE "/NODEFAULTLIB:libci.lib")
+    # Contra: the game with Contra assets exhausts the 2 GB user address space of a 32-bit process
+    # (std::bad_alloc in GameEngine::update). Large Address Aware gives it 4 GB on 64-bit Windows.
+    target_link_options(z_generals PRIVATE "/LARGEADDRESSAWARE")
 endif()
 
 target_include_directories(z_generals PRIVATE
