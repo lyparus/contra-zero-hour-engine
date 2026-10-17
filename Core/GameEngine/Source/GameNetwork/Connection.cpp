@@ -39,6 +39,12 @@ Connection::Connection() {
 	m_user = nullptr;
 	m_netCommandList = nullptr;
 	m_retryTime = 2000; // set retry time to 2 seconds.
+	m_haveRoundTrip = false;
+	m_smoothedRtt = 0.0f;
+	m_rttVariation = 0.0f;
+	m_statSends = 0;
+	m_statRetries = 0;
+	m_statAcks = 0;
 	m_lastTimeSent = 0;
 	m_frameGrouping = 1;
 	m_isQuitting = false;
@@ -81,6 +87,12 @@ void Connection::init() {
 	m_frameGrouping = 1;
 	m_numRetries = 0;
 	m_retryMetricsTime = 0;
+	m_haveRoundTrip = false;
+	m_smoothedRtt = 0.0f;
+	m_rttVariation = 0.0f;
+	m_statSends = 0;
+	m_statRetries = 0;
+	m_statAcks = 0;
 
 	for (Int i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; ++i) {
 		m_latencies[i] = 0;
@@ -260,16 +272,20 @@ UnsignedInt Connection::doSend() {
 
 			time_t timeLastSent = msg->getTimeLastSent();
 
-			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
+			if (((curtime - timeLastSent) > getRetryInterval(msg)) || (timeLastSent == -1)) {
 				notDone = packet.addCommand(msg);
 				if (notDone) {
 					// the msg command was added to the packet.
 					if (CommandRequiresAck(msg->getCommand())) {
 						if (timeLastSent != -1) {
 							++m_numRetries;
+							++m_statRetries;
+						} else {
+							++m_statSends;
 						}
 						doRetryMetrics();
 						msg->setTimeLastSent(curtime);
+						msg->incrementNumSends();
 					} else {
 						m_netCommandList->removeMessage(msg);
 						deleteInstance(msg);
@@ -345,6 +361,11 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	Int index = temp->getCommand()->getID() % CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_averageLatency -= ((Real)(m_latencies[index])) / CONNECTION_LATENCY_HISTORY_LENGTH;
 	Real lat = timeGetTime() - temp->getTimeLastSent();
+	++m_statAcks;
+	// Karn's algorithm: only a command that was sent exactly once gives an unambiguous round trip sample.
+	if (temp->getNumSends() == 1) {
+		updateRoundTrip(lat);
+	}
 	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_latencies[index] = lat;
 
@@ -362,6 +383,53 @@ void Connection::setFrameGrouping(time_t frameGrouping) {
 //	m_retryTime = frameGrouping * 4;
 }
 
+/**
+ * Contra: take one clean round trip sample (milliseconds) and update the smoothed round trip time and its
+ * variation the way RFC 6298 does (alpha = 1/8, beta = 1/4).
+ */
+void Connection::updateRoundTrip(Real sampleMs) {
+	if (sampleMs < 0.0f) {
+		return;
+	}
+	if (!m_haveRoundTrip) {
+		m_smoothedRtt = sampleMs;
+		m_rttVariation = sampleMs / 2.0f;
+		m_haveRoundTrip = true;
+		return;
+	}
+	Real delta = m_smoothedRtt - sampleMs;
+	if (delta < 0.0f) {
+		delta = -delta;
+	}
+	m_rttVariation = 0.75f * m_rttVariation + 0.25f * delta;
+	m_smoothedRtt = 0.875f * m_smoothedRtt + 0.125f * sampleMs;
+}
+
+/**
+ * Contra: how long to wait after the last send of this command before sending it again.
+ * Fixed 2000 ms in the original game. Now: smoothed round trip + 4x variation (never below 120 ms), doubled
+ * for every unanswered send, never above the old 2000 ms. Until the first measurement it stays conservative.
+ * Passing nullptr returns the base timeout.
+ */
+time_t Connection::getRetryInterval(const NetCommandRef *ref) const {
+	const time_t maxInterval = 2000;
+	time_t base = 1000;
+	if (m_haveRoundTrip) {
+		Real timeout = m_smoothedRtt + 4.0f * m_rttVariation;
+		if (timeout < 120.0f) {
+			timeout = 120.0f;
+		}
+		base = (time_t)timeout;
+	}
+	if (ref != nullptr) {
+		UnsignedInt sends = ref->getNumSends();
+		for (UnsignedInt i = 1; i < sends && base < maxInterval; ++i) {
+			base *= 2;
+		}
+	}
+	return base > maxInterval ? maxInterval : base;
+}
+
 void Connection::doRetryMetrics() {
 	static Int numSeconds = 0;
 	time_t curTime = timeGetTime();
@@ -369,7 +437,23 @@ void Connection::doRetryMetrics() {
 	if ((curTime - m_retryMetricsTime) > 10000) {
 		m_retryMetricsTime = curTime;
 		++numSeconds;
-//		DEBUG_LOG(("Retries in the last 10 seconds = %d, average latency = %fms", m_numRetries, m_averageLatency));
+		DEBUG_LOG(("Connection stats: sends=%u retries=%u acks=%u srtt=%.1fms rttvar=%.1fms retry interval=%dms (retries in the last 10 s: %d)",
+			m_statSends, m_statRetries, m_statAcks, m_smoothedRtt, m_rttVariation, (Int)getRetryInterval(nullptr), m_numRetries));
+
+		// Contra: keep a plain text record of the connection quality (also in release builds) so that a game
+		// played with friends leaves real numbers: NetworkStats.txt in the user data folder.
+		if (TheGlobalData != nullptr && m_user != nullptr) {
+			AsciiString statsPath = TheGlobalData->getPath_UserData();
+			statsPath.concat("NetworkStats.txt");
+			FILE *fp = fopen(statsPath.str(), "a");
+			if (fp != nullptr) {
+				UnsignedInt peerAddr = m_user->GetIPAddr();
+				fprintf(fp, "t=%lu peer=%u.%u.%u.%u sends=%u retries=%u acks=%u srtt=%.1fms rttvar=%.1fms retry_interval=%dms retries_last_10s=%d\n",
+					(unsigned long)timeGetTime(), (peerAddr >> 24) & 255, (peerAddr >> 16) & 255, (peerAddr >> 8) & 255, peerAddr & 255,
+					m_statSends, m_statRetries, m_statAcks, m_smoothedRtt, m_rttVariation, (Int)getRetryInterval(nullptr), m_numRetries);
+				fclose(fp);
+			}
+		}
 		m_numRetries = 0;
 //		m_retryTime = m_averageLatency * 1.5;
 	}

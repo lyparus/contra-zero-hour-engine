@@ -82,6 +82,8 @@ public:
 
 protected:
 	void doRetryMetrics();
+	void updateRoundTrip(Real sampleMs);
+	time_t getRetryInterval(const NetCommandRef *ref) const;
 
 	Bool m_isQuitting;
 	UnsignedInt m_quitTime;
@@ -98,4 +100,13 @@ protected:
 	time_t m_lastTimeSent;				///< The time of the last packet send.
 	Int m_numRetries;							///< The number of retries for the last second.
 	time_t m_retryMetricsTime;		///< The start time of the current retry metrics thing.
+
+	// Contra: retransmission timeout from the measured round trip time (RFC 6298 style, Karn's algorithm)
+	// instead of a fixed 2000 ms, so a lost packet is repaired in about one round trip, not two seconds.
+	Bool m_haveRoundTrip;				///< At least one clean round trip sample was taken.
+	Real m_smoothedRtt;					///< Smoothed round trip time in milliseconds.
+	Real m_rttVariation;				///< Round trip time variation in milliseconds.
+	UnsignedInt m_statSends;			///< Statistics: commands put on the wire (first sends).
+	UnsignedInt m_statRetries;			///< Statistics: commands sent again.
+	UnsignedInt m_statAcks;				///< Statistics: acknowledgements received.
 };

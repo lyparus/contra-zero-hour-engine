@@ -61,6 +61,8 @@ public:
 
 	time_t getTimeLastSent() const;
 	void setTimeLastSent(time_t timeLastSent);
+	UnsignedInt getNumSends() const { return m_numSends; }	///< How many times this command has been put on the wire.
+	void incrementNumSends() { ++m_numSends; }
 
 protected:
 	NetCommandMsg *m_msg;
@@ -68,6 +70,7 @@ protected:
 	NetCommandRef *m_prev;
 	UnsignedByte m_relay; ///< Need this in the command reference since the relay value will be different depending on where this particular reference is being sent.
 	time_t m_timeLastSent;
+	UnsignedInt m_numSends;
 
 #ifdef DEBUG_NETCOMMANDREF
 	UnsignedInt m_id;
