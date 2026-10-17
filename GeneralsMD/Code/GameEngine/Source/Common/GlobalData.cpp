@@ -1259,6 +1259,15 @@ void GlobalData::parseCustomDefinition()
 		// TheSuperHackers @tweak xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 		m_viewportHeightScale = 1.0f;
 	}
+
+	// Contra: in a network game the game speed follows the slowest player's average frame rate over the last
+	// NetworkFPSHistoryLength seconds (30 in Contra's GameData.ini). After a short dip in a big fight that kept the
+	// whole game slowed down for half a minute. A 10 second window recovers three times faster; the 10 percent
+	// hysteresis in ConnectionManager::updateRunAhead still ignores mild dips.
+	if (m_networkFPSHistoryLength > 10)
+	{
+		m_networkFPSHistoryLength = 10;
+	}
 }
 
 UnsignedInt GlobalData::generateExeCRC()
