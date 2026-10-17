@@ -893,10 +893,64 @@ DECLARE_PERF_TIMER(GameEngine_update)
 /** -----------------------------------------------------------------------------------------------
  * Update the game engine by updating the GameClient and GameLogic singletons.
  */
+// Contra: where does the time of a game loop go? Every 10 seconds one line is appended to PerfStats.txt in the user
+// data folder: loops and logic frames per second, average milliseconds spent in the client update (input, drawing),
+// in the network update and in the logic update, and the slowest single loop. In a network game the slowest
+// machine sets the game speed for everyone, so these numbers show whether logic or drawing is the bottleneck.
+namespace
+{
+	struct LoopPerf
+	{
+		double freq;
+		double clientMs, networkMs, logicMs, maxLoopMs, maxLogicMs;
+		UnsignedInt loops, logicFrames;
+		DWORD windowStart;
+		LoopPerf() : freq(0.0), clientMs(0.0), networkMs(0.0), logicMs(0.0), maxLoopMs(0.0), maxLogicMs(0.0), loops(0), logicFrames(0), windowStart(0)
+		{
+			LARGE_INTEGER f;
+			if (QueryPerformanceFrequency(&f))
+			{
+				freq = (double)f.QuadPart / 1000.0; // ticks per millisecond
+			}
+		}
+		double now() const
+		{
+			LARGE_INTEGER t;
+			QueryPerformanceCounter(&t);
+			return (double)t.QuadPart / freq;
+		}
+		void flush(DWORD tick)
+		{
+			if (loops > 0 && TheGlobalData != nullptr && TheGameLogic != nullptr && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame())
+			{
+				AsciiString path = TheGlobalData->getPath_UserData();
+				path.concat("PerfStats.txt");
+				FILE *fp = fopen(path.str(), "a");
+				if (fp != nullptr)
+				{
+					const double seconds = (tick - windowStart) / 1000.0;
+					fprintf(fp, "t=%lu frame=%u objects=%u network=%d loops/s=%.1f logic_frames/s=%.1f client_ms=%.2f network_ms=%.2f logic_ms=%.2f max_loop_ms=%.1f max_logic_ms=%.1f\n",
+						(unsigned long)tick, (unsigned)TheGameLogic->getFrame(), (unsigned)TheGameLogic->getObjectCount(), TheNetwork != nullptr ? 1 : 0,
+						loops / seconds, logicFrames / seconds, clientMs / loops, networkMs / loops,
+						logicFrames > 0 ? logicMs / logicFrames : 0.0, maxLoopMs, maxLogicMs);
+					fclose(fp);
+				}
+			}
+			clientMs = networkMs = logicMs = maxLoopMs = maxLogicMs = 0.0;
+			loops = logicFrames = 0;
+			windowStart = tick;
+		}
+	};
+	LoopPerf s_loopPerf;
+}
+
 void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
+		const double loopStart = s_loopPerf.now();
+		double afterClient = loopStart;
+		double afterNetwork = loopStart;
 		{
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
@@ -908,22 +962,51 @@ void GameEngine::update()
 			TheAudio->UPDATE();
 			TheGameClient->UPDATE();
 			TheMessageStream->propagateMessages();
+			afterClient = s_loopPerf.now();
 
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->UPDATE();
 			}
+			afterNetwork = s_loopPerf.now();
 		}
 
+		double logicTime = 0.0;
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+			const double logicStart = s_loopPerf.now();
 			TheGameLogic->UPDATE();
 
 			if (!TheFramePacer->isTimeFrozen())
 			{
 				TheGameClient->step();
 			}
+			logicTime = s_loopPerf.now() - logicStart;
+			++s_loopPerf.logicFrames;
+			s_loopPerf.logicMs += logicTime;
+			if (logicTime > s_loopPerf.maxLogicMs)
+			{
+				s_loopPerf.maxLogicMs = logicTime;
+			}
+		}
+
+		const double loopTime = s_loopPerf.now() - loopStart;
+		++s_loopPerf.loops;
+		s_loopPerf.clientMs += afterClient - loopStart;
+		s_loopPerf.networkMs += afterNetwork - afterClient;
+		if (loopTime > s_loopPerf.maxLoopMs)
+		{
+			s_loopPerf.maxLoopMs = loopTime;
+		}
+		const DWORD tick = timeGetTime();
+		if (s_loopPerf.windowStart == 0)
+		{
+			s_loopPerf.windowStart = tick;
+		}
+		else if (tick - s_loopPerf.windowStart >= 10000)
+		{
+			s_loopPerf.flush(tick);
 		}
 	}
 }
