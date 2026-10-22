@@ -20,8 +20,9 @@
 // Based on GeneralsX (fbraz3/GeneralsX, CompatLib/Source/d3dx8_compat.cpp), which in parts follows Wine.
 // Differences: no GLI dependency, D3DXLoadSurfaceFromSurface honours source/destination rectangles and
 // converts between the uncompressed formats the game uses, cube/volume textures are created on the device.
-// Not implemented (the game copes with failure): D3DXCreateTextureFromFileExA (unused) and
-// D3DXAssembleShader (water pixel shaders fall back to the fixed function path).
+// D3DXAssembleShader has no assembler: it returns byte code precompiled with the real 32-bit d3dx8.lib for
+// the shader sources the game uses (d3dx8_shaders.inl, made by generate_shader_table.py).
+// Not implemented (the game copes with failure): D3DXCreateTextureFromFileExA (unused).
 
 #include <windows.h>
 #include <d3dx8.h>
@@ -175,6 +176,60 @@ uint32 Lerp_ARGB(uint32 c0, uint32 c1, float t)
 	}
 	return result;
 }
+
+// IID_ID3DXBuffer from d3dx8core.h; its definition lives in the 32-bit DX8 libraries only
+const GUID kIID_ID3DXBuffer = { 0x932e6a7e, 0xc68e, 0x45dd, { 0xa7, 0xbf, 0x53, 0xd1, 0x9c, 0x86, 0xdb, 0x1f } };
+
+// ID3DXBuffer holding a copy of some bytes (what D3DXAssembleShader hands out)
+class MemoryBuffer : public ID3DXBuffer
+{
+public:
+	MemoryBuffer(const void *data, DWORD size) : m_refCount(1), m_data(new BYTE[size]), m_size(size)
+	{
+		memcpy(m_data, data, size);
+	}
+
+	STDMETHOD(QueryInterface)(REFIID iid, LPVOID *ppv)
+	{
+		if (ppv == nullptr)
+			return E_POINTER;
+		if (iid == IID_IUnknown || iid == kIID_ID3DXBuffer)
+		{
+			*ppv = static_cast<ID3DXBuffer *>(this);
+			AddRef();
+			return S_OK;
+		}
+		*ppv = nullptr;
+		return E_NOINTERFACE;
+	}
+	STDMETHOD_(ULONG, AddRef)() { return InterlockedIncrement(&m_refCount); }
+	STDMETHOD_(ULONG, Release)()
+	{
+		const ULONG count = InterlockedDecrement(&m_refCount);
+		if (count == 0)
+			delete this;
+		return count;
+	}
+	STDMETHOD_(LPVOID, GetBufferPointer)() { return m_data; }
+	STDMETHOD_(DWORD, GetBufferSize)() { return m_size; }
+
+private:
+	~MemoryBuffer() { delete[] m_data; }
+
+	LONG m_refCount;
+	BYTE *m_data;
+	DWORD m_size;
+};
+
+struct PrecompiledShader
+{
+	const char *source;
+	UINT sourceLength;
+	const DWORD *code;
+	DWORD codeSize;
+};
+
+#include "d3dx8_shaders.inl"
 
 RECT Whole_Rect(const D3DSURFACE_DESC &desc)
 {
@@ -526,10 +581,24 @@ HRESULT WINAPI D3DXAssembleShader(
 	LPD3DXBUFFER *ppCompiledShader,
 	LPD3DXBUFFER *ppCompilationErrors)
 {
-	// No shader assembler on x64. Callers (water, profiler) check the result and do without the shader.
 	if (ppConstants) *ppConstants = nullptr;
 	if (ppCompiledShader) *ppCompiledShader = nullptr;
 	if (ppCompilationErrors) *ppCompilationErrors = nullptr;
+	if (pSrcData == nullptr)
+		return D3DERR_INVALIDCALL;
+
+	// No shader assembler on x64: look the source up among the shaders precompiled with the 32-bit d3dx8.
+	// Unknown sources fail; the callers (water, profiler) then do without the shader.
+	for (size_t i = 0; i < ARRAYSIZE(kPrecompiledShaders); ++i)
+	{
+		const PrecompiledShader &shader = kPrecompiledShaders[i];
+		if (shader.sourceLength == SrcDataLen && memcmp(shader.source, pSrcData, SrcDataLen) == 0)
+		{
+			if (ppCompiledShader)
+				*ppCompiledShader = new MemoryBuffer(shader.code, shader.codeSize);
+			return D3D_OK;
+		}
+	}
 	return D3DERR_NOTAVAILABLE;
 }
 
