@@ -213,9 +213,15 @@ void setFPMode()
 	UnsignedInt newVal = curVal;
 	newVal = (newVal & ~_MCW_RC) | (_RC_NEAR & _MCW_RC);
 	//newVal = (newVal & ~_MCW_RC) | (_RC_CHOP & _MCW_RC);
+#if defined(_M_X64)
+	// x64 has no x87 precision control (_MCW_PC is an invalid parameter there); SSE math is always
+	// single precision for floats, so only the rounding mode is set.
+	_controlfp(newVal, _MCW_RC);
+#else
 	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------

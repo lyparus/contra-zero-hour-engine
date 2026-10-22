@@ -56,6 +56,12 @@ endif()
 # Contra x64 trial: DX8 headers are needed on 64 bit too (the bundled .lib files are 32-bit only).
 if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     include(cmake/dx8.cmake)
+    if(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+        # Keep the DX8 headers, but take dinput8/dxguid from the Windows SDK (x64). d3d8.dll is loaded at
+        # run time; d3dx8 has no x64 version at all and stays unresolved until it is replaced.
+        set_property(TARGET d3d8lib PROPERTY INTERFACE_LINK_LIBRARIES dinput8 dxguid legacy_stdio_definitions)
+        set_property(TARGET d3d8lib PROPERTY INTERFACE_LINK_DIRECTORIES "")
+    endif()
 endif()
 
 if (IS_VS6_BUILD)
