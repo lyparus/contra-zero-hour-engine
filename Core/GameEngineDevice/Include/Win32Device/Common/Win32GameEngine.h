@@ -38,6 +38,9 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "MilesAudioDevice/MilesAudioManager.h"
+#ifdef RTS_USE_MINIAUDIO
+#include "MiniAudioDevice/MiniAudioManager.h"
+#endif
 #include "Win32Device/Common/Win32LocalFileSystem.h"
 #include "W3DDevice/Common/W3DModuleFactory.h"
 #include "W3DDevice/GameLogic/W3DGameLogic.h"
@@ -113,5 +116,9 @@ inline AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
 {
 	if (dummy)
 		return NEW MilesAudioManagerDummy;
+#ifdef RTS_USE_MINIAUDIO
+	return NEW MiniAudioManager;	// Contra x64: no Miles for 64-bit
+#else
 	return NEW MilesAudioManager;
+#endif
 }

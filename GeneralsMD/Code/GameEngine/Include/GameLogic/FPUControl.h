@@ -35,3 +35,11 @@
 	* anywhere that touches DirectX inside GameLogic loops (LoadScreen).
 	*/
 void setFPMode();
+
+// GeneralsX: restores the game's FPU mode when leaving an audio entry point (see GeneralsX #215)
+class ScopedFPUGuard
+{
+public:
+	ScopedFPUGuard() {}
+	~ScopedFPUGuard() { setFPMode(); }
+};

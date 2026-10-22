@@ -226,6 +226,18 @@ target_link_libraries(corei_gameenginedevice_public INTERFACE
     deps_miles
 )
 
+# Contra x64: Miles exists only for 32-bit, the x64 build plays sound through miniaudio
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/MiniAudioDevice/MiniAudioManager.h
+        Include/MiniAudioDevice/MiniAudioStream.h
+        Source/MiniAudioDevice/MiniAudioManager.cpp
+        Source/MiniAudioDevice/MiniAudioStream.cpp
+    )
+    target_link_libraries(corei_gameenginedevice_public INTERFACE deps_miniaudio)
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_USE_MINIAUDIO)
+endif()
+
 if(RTS_BUILD_OPTION_FFMPEG)
     find_package(FFMPEG REQUIRED)
 
