@@ -53,7 +53,8 @@ if(MINGW)
 endif()
 
 # Find/Add build dependencies and stubs shared by all projects
-if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+# Contra x64 trial: DX8 headers are needed on 64 bit too (the bundled .lib files are 32-bit only).
+if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     include(cmake/dx8.cmake)
 endif()
 

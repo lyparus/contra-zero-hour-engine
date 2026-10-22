@@ -105,6 +105,19 @@
             }
         },
         {
+            "name": "win64",
+            "inherits": "default",
+            "hidden": false,
+            "displayName": "Windows 64bit Release (Contra x64 trial)",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "RTS_FLAGS": "/W3"
+            }
+        },
+        {
             "name": "win32-profile",
             "inherits": "win32",
             "displayName": "Windows 32bit Profile",
