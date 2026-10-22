@@ -83,6 +83,7 @@
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -1167,7 +1168,7 @@ Bool BaseHeightMapRenderObjClass::isClearLineOfSight(const Coord3D& pos, const C
 	// seems acceptable accuracy. If performance here is inadequate,
 	// we can try increasing the step size, but be sure to retest
 	// accuracy.
-	Real len = ceilf(sqrtf(fdx*fdx + fdy*fdy));
+	Real len = WWMath::Ceilf(WWMath::Sqrtf(fdx*fdx + fdy*fdy));
 	const Real STEP_LEN = 2.0f;
 	Int numSteps = REAL_TO_INT_CEIL(len / STEP_LEN);
 	if (numSteps < 1) numSteps = 1;
@@ -1311,7 +1312,7 @@ Bool BaseHeightMapRenderObjClass::evaluateAsVisibleCliff(Int xIndex, Int yIndex,
 	{
 		0.0f,
 		1.0 * MAP_XY_FACTOR,
-		sqrt(2.0f) * MAP_XY_FACTOR,
+		(Real)(WWMath::Sqrt(2.0) * MAP_XY_FACTOR),
 		1.0 * MAP_XY_FACTOR,
 	};
 
@@ -1336,7 +1337,7 @@ Bool BaseHeightMapRenderObjClass::evaluateAsVisibleCliff(Int xIndex, Int yIndex,
 	Bool anyImpassable = FALSE;
 
 	for (Int i = 1; i < 4 && !anyImpassable; ++i) {
-		if (fabs((heights[i] - heights[0]) / distance[i]) > valuesGreaterThanRad) {
+		if (WWMath::Fabs((heights[i] - heights[0]) / distance[i]) > valuesGreaterThanRad) {
 			anyImpassable = TRUE;
 		}
 	}
@@ -1733,7 +1734,7 @@ void BaseHeightMapRenderObjClass::updateViewImpassableAreas(Bool partial, Int mi
 	}
 
 	// save calculating the tangent over and over again.
-	Real tanImpassableRad = tan(m_curImpassableSlope / 360.f * 2 * PI);
+	Real tanImpassableRad = WWMath::Tan(m_curImpassableSlope / 360.f * 2 * PI);
 	for (Int j = minY; j < maxY; ++j) {
 		for (Int i = minX; i < maxX; ++i) {
 			m_showAsVisibleCliff[i + j * xSize] = evaluateAsVisibleCliff(i, j, tanImpassableRad);
@@ -2295,7 +2296,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (Renderer::Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
 
 	Int vertexCount = 0;
@@ -2460,7 +2461,7 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (Renderer::Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
 
 	Int vertexCount = 0;
