@@ -355,10 +355,10 @@ void DX8Wrapper::Shutdown()
 		}
 	}
 
-	if (D3D8Lib) {
-		FreeLibrary(D3D8Lib);
-		D3D8Lib = nullptr;
-	}
+	// Contra: keep d3d8.dll loaded until the process exits. Subsystems that are destroyed after the
+	// display (e.g. the particle system manager) still Release() their D3D textures, which calls into
+	// d3d8.dll. A DLL that only we reference (DXVK) would already be unmapped at that point.
+	D3D8Lib = nullptr;
 
 	_RenderDeviceNameTable.Clear();		 // note - Delete_All() resizes the vector, causing a reallocation.  Clear is better. jba.
 	_RenderDeviceShortNameTable.Clear();
