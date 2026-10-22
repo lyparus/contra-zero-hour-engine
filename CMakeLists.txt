@@ -58,8 +58,8 @@ if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     include(cmake/dx8.cmake)
     if(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
         # Keep the DX8 headers, but take dinput8/dxguid from the Windows SDK (x64). d3d8.dll is loaded at
-        # run time; d3dx8 has no x64 version at all and stays unresolved until it is replaced.
-        set_property(TARGET d3d8lib PROPERTY INTERFACE_LINK_LIBRARIES dinput8 dxguid legacy_stdio_definitions)
+        # run time; d3dx8 has no x64 version at all and is replaced by Dependencies/D3DX8Compat.
+        set_property(TARGET d3d8lib PROPERTY INTERFACE_LINK_LIBRARIES deps_d3dx8compat dinput8 dxguid legacy_stdio_definitions)
         set_property(TARGET d3d8lib PROPERTY INTERFACE_LINK_DIRECTORIES "")
     endif()
 endif()

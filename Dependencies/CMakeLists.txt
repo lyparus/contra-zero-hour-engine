@@ -16,6 +16,10 @@ add_subdirectory(Utility)
 add_subdirectory(Bink)
 add_subdirectory(Miles)
 
+if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_subdirectory(D3DX8Compat)
+endif()
+
 if (WIN32)
     add_subdirectory(DbgHelp)
     add_subdirectory(Usp10)
