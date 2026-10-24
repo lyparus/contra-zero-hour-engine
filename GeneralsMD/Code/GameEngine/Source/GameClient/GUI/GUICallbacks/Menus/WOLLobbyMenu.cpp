@@ -348,13 +348,13 @@ static void populateGroupRoomListbox(GameWindow *lb)
 			if (room.m_groupID == TheGameSpyInfo->getCurrentGroupRoom())
 			{
 				Int selected = GadgetComboBoxAddEntry(lb, room.m_translatedName, GameSpyColor[GSCOLOR_CURRENTROOM]);
-				GadgetComboBoxSetItemData(lb, selected, (void *)(room.m_groupID));
+				GadgetComboBoxSetItemData(lb, selected, (void *)(intptr_t)(room.m_groupID));
 				indexToSelect = selected;
 			}
 			else
 			{
 				Int selected = GadgetComboBoxAddEntry(lb, room.m_translatedName, GameSpyColor[GSCOLOR_ROOM]);
-				GadgetComboBoxSetItemData(lb, selected, (void *)(room.m_groupID));
+				GadgetComboBoxSetItemData(lb, selected, (void *)(intptr_t)(room.m_groupID));
 			}
 		}
 		else
@@ -1822,7 +1822,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 								rcMenu->winHide(FALSE);
 								rcMenu->winSetPosition(rc->mouseX, rc->mouseY);
 
-								rcMenu->winSetUserData((void *)selectedID);
+								rcMenu->winSetUserData((void *)(intptr_t)selectedID);
 								TheWindowManager->winSetLoneWindow(rcMenu);
 							}
 						}

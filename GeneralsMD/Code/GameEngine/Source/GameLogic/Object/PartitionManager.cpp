@@ -4054,7 +4054,7 @@ void PartitionManager::doShroudReveal(Real centerX, Real centerY, Real radius, P
 		const Player *currentPlayer = ThePlayerList->getNthPlayer( currentIndex );
 		if( BitIsSet( playerMask, currentPlayer->getPlayerMask() ) )
 		{
-			circle.drawCircle(hLineAddLooker, (void*)currentIndex);
+			circle.drawCircle(hLineAddLooker, (void*)(intptr_t)currentIndex);
 		}
 	}
 }
@@ -4119,7 +4119,7 @@ void PartitionManager::undoShroudReveal(Real centerX, Real centerY, Real radius,
 		const Player *currentPlayer = ThePlayerList->getNthPlayer( currentIndex );
 		if( BitIsSet( playerMask, currentPlayer->getPlayerMask() ) )
 		{
-			circle.drawCircle(hLineRemoveLooker, (void*)currentIndex);
+			circle.drawCircle(hLineRemoveLooker, (void*)(intptr_t)currentIndex);
 		}
 	}
 }
@@ -4158,7 +4158,7 @@ void PartitionManager::doShroudCover(Real centerX, Real centerY, Real radius, Pl
 		const Player *currentPlayer = ThePlayerList->getNthPlayer( currentIndex );
 		if( BitIsSet( playerMask, currentPlayer->getPlayerMask() ) )
 		{
-			circle.drawCircle(hLineAddShrouder, (void*)currentIndex);
+			circle.drawCircle(hLineAddShrouder, (void*)(intptr_t)currentIndex);
 		}
 	}
 }
@@ -4180,7 +4180,7 @@ void PartitionManager::undoShroudCover(Real centerX, Real centerY, Real radius, 
 		const Player *currentPlayer = ThePlayerList->getNthPlayer( currentIndex );
 		if( BitIsSet( playerMask, currentPlayer->getPlayerMask() ) )
 		{
-			circle.drawCircle(hLineRemoveShrouder, (void*)currentIndex);
+			circle.drawCircle(hLineRemoveShrouder, (void*)(intptr_t)currentIndex);
 		}
 	}
 }

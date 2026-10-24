@@ -484,8 +484,8 @@ void InsertBattleHonor(GameWindow *list, const Image *image, Bool enabled, Int i
 		itemData |= BATTLE_HONOR_NOT_GAINED;
 
 	GadgetListBoxAddEntryImage(list, image, row, column, height, width, TRUE, color);
-	GadgetListBoxSetItemData(list, (void *)itemData, row, column );
-	GadgetListBoxSetItemData(list, (void *)extra, row - 1, column );
+	GadgetListBoxSetItemData(list, (void *)(intptr_t)itemData, row, column );
+	GadgetListBoxSetItemData(list, (void *)(intptr_t)extra, row - 1, column );
 
 	/*
 	** removing text, since every place that adds text has alternate displays of the same thing

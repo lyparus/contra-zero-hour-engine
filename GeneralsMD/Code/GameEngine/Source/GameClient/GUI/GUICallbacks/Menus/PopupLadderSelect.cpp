@@ -657,7 +657,7 @@ WindowMsgHandledType RCGameDetailsMenuSystem( GameWindow *window, UnsignedInt ms
 							rcMenu->winBringToTop();
 							rcMenu->winHide(FALSE);
 
-							rcMenu->winSetUserData((void *)selectedID);
+							rcMenu->winSetUserData((void *)(intptr_t)selectedID);
 							TheWindowManager->winSetLoneWindow(rcMenu);
 
 							GameWindow *st = TheWindowManager->winGetWindowFromId(nullptr,
