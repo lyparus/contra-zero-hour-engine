@@ -39,14 +39,14 @@
 BOOL InitSymbolInfo();
 void MakeStackTrace(DWORD_PTR myeip,DWORD_PTR myesp,DWORD_PTR myebp, int skipFrames, void (*callback)(const char*));
 
-// x86 walks the stack from eip/esp/ebp alone, x64 needs the full context record (gsContext)
+// StackWalk gets a context record (gsContext) on both: x64 needs it, and on x86 it lets dbghelp unwind
+// frames without a frame pointer (FPO data from the pdb) instead of stopping after the first frame.
 #if defined(_M_X64)
 #define STACKDUMP_MACHINE IMAGE_FILE_MACHINE_AMD64
-#define STACKDUMP_CONTEXT (&gsContext)
 #else
 #define STACKDUMP_MACHINE IMAGE_FILE_MACHINE_I386
-#define STACKDUMP_CONTEXT nullptr
 #endif
+#define STACKDUMP_CONTEXT (&gsContext)
 void GetFunctionDetails(void *pointer, char*name, char*filename, unsigned int* linenumber, unsigned int* address);
 void WriteStackLine(void*address, void (*callback)(const char*));
 
@@ -135,10 +135,14 @@ void StackDumpFromContext(DWORD_PTR eip,DWORD_PTR esp,DWORD_PTR ebp, void (*call
 //*****************************************************************************
 BOOL InitSymbolInfo()
 {
-	if (DbgHelpLoader::isLoaded())
+	// Contra: remember our own symbol setup. The MiniDumper loads dbghelp at startup, so "dbghelp is loaded"
+	// used to skip SymInitialize/SymLoadModule here and every stack line came out as <Unknown>.
+	static Bool s_symbolsReady = FALSE;
+	static Bool s_symbolsFailed = FALSE;
+	if (s_symbolsReady)
 		return TRUE;
 
-	if (DbgHelpLoader::isFailed())
+	if (s_symbolsFailed || DbgHelpLoader::isFailed())
 		return FALSE;
 
 	if (!DbgHelpLoader::load())
@@ -152,7 +156,9 @@ BOOL InitSymbolInfo()
 	char directory[_MAX_PATH+1];
 	HANDLE process;
 
-	DbgHelp::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES | SYMOPT_OMAP_FIND_NEAREST);
+	// Contra: no SYMOPT_DEFERRED_LOADS: SymGetSymFromAddr does not trigger the deferred pdb load and fails with
+	// ERROR_MOD_NOT_FOUND. Symbols are only needed when a stack is dumped, so loading them up front is fine.
+	DbgHelp::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES | SYMOPT_OMAP_FIND_NEAREST);
 
 	process = GetCurrentProcess();
 
@@ -161,7 +167,9 @@ BOOL InitSymbolInfo()
 
 	// turn it into a search path
 	_splitpath(pathname, drive, directory, nullptr, nullptr);
-	sprintf(pathname, "%s:\\%s", drive, directory);
+	// Contra: _splitpath returns the drive with its colon ("D:") and the directory with its leading backslash,
+	// "%s:\\%s" made "D::\\dir\\" and the pdb next to the exe was never found
+	sprintf(pathname, "%s%s", drive, directory);
 
 	// append the current directory to build a search path for SymInit
 	::lstrcat(pathname, ";.;");
@@ -170,15 +178,19 @@ BOOL InitSymbolInfo()
 	{
 		// regenerate the name of the app
 		::GetModuleFileName(nullptr, pathname, _MAX_PATH);
-		if(DbgHelp::SymLoadModule(process, nullptr, pathname, nullptr, 0, 0))
+		// Contra: pass the real load address; with base 0 dbghelp uses the preferred base from the PE header,
+		// which ASLR moves away from, and no stack address matches a symbol
+		if(DbgHelp::SymLoadModule(process, nullptr, pathname, nullptr, (DWORD_PTR)GetModuleHandle(nullptr), 0))
 		{
 				//Load any other relevant modules (ie dlls) here
 				atexit(DbgHelpLoader::unload);
+				s_symbolsReady = TRUE;
 				return TRUE;
 		}
 	}
 
 	DbgHelpLoader::unload();
+	s_symbolsFailed = TRUE;
 	return FALSE;
 }
 
@@ -201,6 +213,10 @@ RtlCaptureContext(&gsContext);
 gsContext.Rip = myeip;
 gsContext.Rsp = myesp;
 gsContext.Rbp = myebp;
+#else
+gsContext.Eip = myeip;
+gsContext.Esp = myesp;
+gsContext.Ebp = myebp;
 #endif
 
 memset(&stack_frame, 0, sizeof(STACKFRAME));
@@ -298,7 +314,7 @@ void GetFunctionDetails(void *pointer, char*name, char*filename, unsigned int* l
     memset(symbol_buffer, 0, sizeof(symbol_buffer));
 
     PIMAGEHLP_SYMBOL psymbol = (PIMAGEHLP_SYMBOL)symbol_buffer;
-    psymbol->SizeOfStruct = sizeof(symbol_buffer);
+    psymbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL);	// Contra: dbghelp wants the struct size, the name buffer is MaxNameLength
     psymbol->MaxNameLength = 512;
 
 	if (DbgHelp::SymGetSymFromAddr(process, (DWORD_PTR) pointer, &displacement, psymbol))
@@ -383,6 +399,9 @@ MYEIP2:
 #else
 	#error "Unsupported compiler or architecture for register capture"
 #endif
+	gsContext.Eip = myeip;
+	gsContext.Esp = myesp;
+	gsContext.Ebp = myebp;
 #endif
 memset(&stack_frame, 0, sizeof(STACKFRAME));
 stack_frame.AddrPC.Mode = AddrModeFlat;

@@ -401,14 +401,17 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 		DebugString ("Exception Handler: SymInitialize failed with code %d - %s\n", GetLastError(), Last_Error_Text());
 	} else {
 		if (_SymSetOptions != nullptr) {
-			_SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
+			// Contra: no SYMOPT_DEFERRED_LOADS, SymGetSymFromAddr does not trigger the deferred pdb load
+			_SymSetOptions(SYMOPT_UNDNAME);
 		}
 
 		char module_name[_MAX_PATH];
 		GetModuleFileName(nullptr, module_name, sizeof(module_name));
 
 		if (_SymLoadModule != nullptr) {
-			symload = _SymLoadModule(GetCurrentProcess(), nullptr, module_name, nullptr, 0, 0) != 0;
+			// Contra: pass the real load address; with base 0 dbghelp uses the preferred base from the PE header,
+			// which ASLR moves away from, and no stack address matches a symbol.
+			symload = _SymLoadModule(GetCurrentProcess(), nullptr, module_name, nullptr, (DWORD_PTR)GetModuleHandle(nullptr), 0) != 0;
 		}
 
 		if (!symload) {
@@ -1121,14 +1124,15 @@ void Load_Image_Helper()
 		if (_SymInitialize != nullptr && _SymInitialize(GetCurrentProcess(), nullptr, FALSE)) {
 
 			if (_SymSetOptions != nullptr) {
-				_SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
+				// Contra: no SYMOPT_DEFERRED_LOADS, SymGetSymFromAddr does not trigger the deferred pdb load
+				_SymSetOptions(SYMOPT_UNDNAME);
 			}
 
 			char exe_name[_MAX_PATH];
 			GetModuleFileName(nullptr, exe_name, sizeof(exe_name));
 
 			if (_SymLoadModule != nullptr) {
-				symload = _SymLoadModule(GetCurrentProcess(), nullptr, exe_name, nullptr, 0, 0) != 0;
+				symload = _SymLoadModule(GetCurrentProcess(), nullptr, exe_name, nullptr, (DWORD_PTR)GetModuleHandle(nullptr), 0) != 0;
 			}
 
 			if (symload) {
