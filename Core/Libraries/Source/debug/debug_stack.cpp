@@ -116,7 +116,7 @@ static void InitDbghelp()
     gDbg._SymSetOptions(gDbg._SymGetOptions()|SYMOPT_DEFERRED_LOADS|SYMOPT_LOAD_LINES);
 
     // Init module
-    gDbg._SymInitialize((HANDLE)GetCurrentProcessId(),nullptr,TRUE);
+    gDbg._SymInitialize((HANDLE)(uintptr_t)GetCurrentProcessId(),nullptr,TRUE);
 
     // Check: are we using a newer version of dbghelp.dll?
     // (older versions have some serious issues.. err... bugs)
@@ -160,7 +160,7 @@ void DebugStackwalk::Signature::GetSymbol(uintptr_t addr, char *buf, unsigned bu
   buf+=sprintf(buf,"%0*zx",(int)(sizeof(addr)*2),(size_t)addr);
 
   // determine module
-  DWORD_PTR modBase=gDbg._SymGetModuleBase((HANDLE)GetCurrentProcessId(),addr);
+  DWORD_PTR modBase=gDbg._SymGetModuleBase((HANDLE)(uintptr_t)GetCurrentProcessId(),addr);
   if (!modBase)
 	{
 		strcpy(buf," (unknown module)");
@@ -192,7 +192,7 @@ void DebugStackwalk::Signature::GetSymbol(uintptr_t addr, char *buf, unsigned bu
   symPtr->SizeOfStruct=sizeof(IMAGEHLP_SYMBOL);
   symPtr->MaxNameLength=sizeof(symbolBuffer)-sizeof(IMAGEHLP_SYMBOL);
   DWORD_PTR displacement;
-  if (!gDbg._SymGetSymFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,symPtr))
+  if (!gDbg._SymGetSymFromAddr((HANDLE)(uintptr_t)GetCurrentProcessId(),addr,&displacement,symPtr))
     return;
   if ((unsigned int)(bufEnd-buf)<strlen(symPtr->Name)+16)
     return;
@@ -203,7 +203,7 @@ void DebugStackwalk::Signature::GetSymbol(uintptr_t addr, char *buf, unsigned bu
   memset(&line,0,sizeof(line));
   line.SizeOfStruct=sizeof(line);
   DWORD lineDisplacement;
-  if (!gDbg._SymGetLineFromAddr((HANDLE)GetCurrentProcessId(),addr,&lineDisplacement,&line))
+  if (!gDbg._SymGetLineFromAddr((HANDLE)(uintptr_t)GetCurrentProcessId(),addr,&lineDisplacement,&line))
     return;
 
   p=strrchr(line.FileName,'\\'); // use filename only, strip off path
@@ -235,7 +235,7 @@ void DebugStackwalk::Signature::GetSymbol(uintptr_t addr,
   DFAIL_IF(bufFile&&sizeFile<16) return;
 
   // determine module
-  DWORD_PTR modBase=gDbg._SymGetModuleBase((HANDLE)GetCurrentProcessId(),addr);
+  DWORD_PTR modBase=gDbg._SymGetModuleBase((HANDLE)(uintptr_t)GetCurrentProcessId(),addr);
   if (!modBase)
 	{
     if (bufMod)
@@ -275,7 +275,7 @@ void DebugStackwalk::Signature::GetSymbol(uintptr_t addr,
     symPtr->SizeOfStruct=sizeof(IMAGEHLP_SYMBOL);
     symPtr->MaxNameLength=sizeof(symbolBuffer)-sizeof(IMAGEHLP_SYMBOL);
     DWORD_PTR displacement;
-    if (gDbg._SymGetSymFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,symPtr))
+    if (gDbg._SymGetSymFromAddr((HANDLE)(uintptr_t)GetCurrentProcessId(),addr,&displacement,symPtr))
     {
       strlcpy(bufSym,symPtr->Name,sizeSym);
       if (relSym)
@@ -292,7 +292,7 @@ void DebugStackwalk::Signature::GetSymbol(uintptr_t addr,
     memset(&line,0,sizeof(line));
     line.SizeOfStruct=sizeof(line);
     DWORD displacement;
-    if (!gDbg._SymGetLineFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,&line))
+    if (!gDbg._SymGetLineFromAddr((HANDLE)(uintptr_t)GetCurrentProcessId(),addr,&displacement,&line))
       strcpy(bufFile,"(unknown)");
     else
     {

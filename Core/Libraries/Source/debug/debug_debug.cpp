@@ -911,8 +911,8 @@ Debug& Debug::operator<<(const void *ptr)
   (*this) << "ptr:";
   if (ptr)
   {
-    char help[9];
-    (*this) << "0x" << _ultoa((unsigned long)ptr,help,16);
+    char help[17];
+    (*this) << "0x" << _ui64toa((unsigned __int64)(uintptr_t)ptr,help,16);
   }
   else
     (*this) << "null";
@@ -943,8 +943,8 @@ Debug& Debug::operator<<(const MemDump &dump)
   for (unsigned i=0;i<dump.m_numItems;i+=itemPerLine,cur+=itemPerLine*dump.m_bytePerItem)
   {
     // address
-    char buf[9];
-    sprintf(buf,"%08x",dump.m_absAddr?unsigned(cur):cur-dump.m_startPtr);
+    char buf[17];
+    sprintf(buf,"%08zx",dump.m_absAddr?(size_t)(uintptr_t)cur:(size_t)(cur-dump.m_startPtr));
     operator<<(buf);
 
     // items
@@ -1022,9 +1022,10 @@ bool Debug::IsLogEnabled(const char *fileOrGroup)
   // to be used from the D_ISLOG macros only and those guarantee
   // that we are having real static strings let's use
   // that strings address as frame address...
-  FrameHashEntry *e=Instance.LookupFrame((unsigned)fileOrGroup);
+  // (the low 32 bits of the address are enough as a hash key)
+  FrameHashEntry *e=Instance.LookupFrame((unsigned)(uintptr_t)fileOrGroup);
   if (!e)
-    e=Instance.AddFrameEntry((unsigned)fileOrGroup,FrameTypeLog,fileOrGroup,0);
+    e=Instance.AddFrameEntry((unsigned)(uintptr_t)fileOrGroup,FrameTypeLog,fileOrGroup,0);
   if (e->status==Unknown)
     Instance.UpdateFrameStatus(*e);
   return e->status==NoSkip;
