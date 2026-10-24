@@ -238,6 +238,26 @@ if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_USE_MINIAUDIO)
 endif()
 
+# Contra x64: movies through a prebuilt FFmpeg (e.g. a BtbN "win64-lgpl-shared" build with include/, lib/, bin/)
+# instead of vcpkg. Bink exists only for 32-bit. The FFmpeg DLLs from bin/ must be placed next to the exe.
+set(CONTRA_FFMPEG_DIR "" CACHE PATH "Prebuilt FFmpeg (include/, lib/) used for movies")
+if(CONTRA_FFMPEG_DIR AND NOT RTS_BUILD_OPTION_FFMPEG)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/VideoDevice/FFmpeg/FFmpegFile.h
+        Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
+        Source/VideoDevice/FFmpeg/FFmpegFile.cpp
+        Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
+    )
+    target_include_directories(corei_gameenginedevice_private INTERFACE ${CONTRA_FFMPEG_DIR}/include)
+    target_link_libraries(corei_gameenginedevice_private INTERFACE
+        ${CONTRA_FFMPEG_DIR}/lib/avformat.lib
+        ${CONTRA_FFMPEG_DIR}/lib/avcodec.lib
+        ${CONTRA_FFMPEG_DIR}/lib/swscale.lib
+        ${CONTRA_FFMPEG_DIR}/lib/avutil.lib
+    )
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
+endif()
+
 if(RTS_BUILD_OPTION_FFMPEG)
     find_package(FFMPEG REQUIRED)
 

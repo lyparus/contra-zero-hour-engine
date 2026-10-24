@@ -50,6 +50,10 @@ extern "C" {
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include "OpenALAudioDevice/OpenALAudioStream.h"
 #endif
+#ifdef RTS_USE_MINIAUDIO
+// Contra x64: movie sound through the miniaudio stream of MiniAudioManager (as in GeneralsX)
+#include "MiniAudioDevice/MiniAudioStream.h"
+#endif
 
 #include <chrono>
 
@@ -315,6 +319,11 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 	// Release the audio handle if it's already in use
 	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
 	audioStream->reset();
+#elif defined(RTS_USE_MINIAUDIO)
+	// Drop what an earlier movie left in the stream (null when the sound device is off)
+	MiniAudioStream* audioStream = (MiniAudioStream*)TheAudio->getHandleForBink();
+	if (audioStream)
+		audioStream->reset();
 #endif
 
 	// Decode until we have our first video frame
@@ -324,6 +333,12 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
  #ifdef RTS_USE_OPENAL
 	// Start audio playback
 	audioStream->play();
+#elif defined(RTS_USE_MINIAUDIO)
+	if (audioStream)
+	{
+		audioStream->play();
+		audioStream->update();
+	}
 #endif
 
 	m_startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -335,6 +350,15 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 
 FFmpegVideoStream::~FFmpegVideoStream()
 {
+#ifdef RTS_USE_MINIAUDIO
+	// Stop the movie sound with the movie (GeneralsX: otherwise it bleeds into the game after a loading screen)
+	if (TheAudio)
+	{
+		MiniAudioStream* audioStream = (MiniAudioStream*)TheAudio->getHandleForBink();
+		if (audioStream)
+			audioStream->reset();
+	}
+#endif
 	av_freep(&m_audioBuffer);
 	av_frame_free(&m_frame);
 	sws_freeContext(m_swsContext);
@@ -384,6 +408,61 @@ void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type,
 		ALenum format = OpenALAudioManager::getALFormat(frame->ch_layout.nb_channels, bytesPerSample * 8);
 		audioStream->bufferData(frameData, frameSize, format, frame->sample_rate);
 	}
+#elif defined(RTS_USE_MINIAUDIO)
+	else if (stream_type == AVMEDIA_TYPE_AUDIO) {
+		MiniAudioStream* audioStream = (MiniAudioStream*)TheAudio->getHandleForBink();
+		if (audioStream == nullptr)
+			return;
+		AVSampleFormat sampleFmt = static_cast<AVSampleFormat>(frame->format);
+		const int bytesPerSample = av_get_bytes_per_sample(sampleFmt);
+		const int channels = frame->ch_layout.nb_channels;
+		const int frameSize = av_samples_get_buffer_size(nullptr, channels, frame->nb_samples, sampleFmt, 1);
+		if (frameSize <= 0 || bytesPerSample <= 0 || channels <= 0)
+			return;
+
+		// miniaudio takes interleaved u8 / s16 / s32 / f32 as they are (Bink audio decodes to float)
+		ma_format format = ma_format_unknown;
+		switch (av_get_packed_sample_fmt(sampleFmt))
+		{
+			case AV_SAMPLE_FMT_U8:  format = ma_format_u8;  break;
+			case AV_SAMPLE_FMT_S16: format = ma_format_s16; break;
+			case AV_SAMPLE_FMT_S32: format = ma_format_s32; break;
+			case AV_SAMPLE_FMT_FLT: format = ma_format_f32; break;
+			default: break;
+		}
+		if (format == ma_format_unknown)
+		{
+			DEBUG_LOG(("Unsupported movie audio sample format %d", (int)sampleFmt));
+			return;
+		}
+
+		uint8_t* frameData = frame->data[0];
+		// The format is planar - convert it to interleaved
+		if (av_sample_fmt_is_planar(sampleFmt))
+		{
+			videoStream->m_audioBuffer = static_cast<uint8_t*>(av_realloc(videoStream->m_audioBuffer, frameSize));
+			if (videoStream->m_audioBuffer == nullptr)
+			{
+				DEBUG_LOG(("Failed to allocate audio buffer"));
+				return;
+			}
+
+			for (int sample_idx = 0; sample_idx < frame->nb_samples; sample_idx++)
+			{
+				int byte_offset = sample_idx * bytesPerSample;
+				for (int channel_idx = 0; channel_idx < channels; channel_idx++)
+				{
+					uint8_t* dst = &videoStream->m_audioBuffer[byte_offset * channels + channel_idx * bytesPerSample];
+					uint8_t* src = &frame->data[channel_idx][byte_offset];
+					memcpy(dst, src, bytesPerSample);
+				}
+			}
+			frameData = videoStream->m_audioBuffer;
+		}
+
+		audioStream->bufferData(frameData, frameSize, format, frame->sample_rate, channels);
+		audioStream->update();
+	}
 #endif
 }
 
@@ -398,6 +477,14 @@ void FFmpegVideoStream::update()
 	// Start audio playback
 	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
 	audioStream->play();
+#elif defined(RTS_USE_MINIAUDIO)
+	MiniAudioStream* audioStream = (MiniAudioStream*)TheAudio->getHandleForBink();
+	if (audioStream)
+	{
+		if (!audioStream->isPlaying())
+			audioStream->play();
+		audioStream->update();
+	}
 #endif
 	//BinkWait( m_handle );
 }

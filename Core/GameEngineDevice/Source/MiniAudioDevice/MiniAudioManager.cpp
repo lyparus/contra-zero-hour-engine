@@ -909,6 +909,10 @@ UnsignedInt MiniAudioManager::getSpeakerType(void)
 //-------------------------------------------------------------------------------------------------
 void *MiniAudioManager::getHandleForBink(void)
 {
+	// Contra: without an opened device there is no engine to play the movie sound through
+	if (!m_deviceOpened) {
+		return NULL;
+	}
 	if (!m_binkHandle) {
 		m_binkHandle = NEW MiniAudioStream;
 		// Give the stream access to the engine
