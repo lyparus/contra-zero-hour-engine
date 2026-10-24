@@ -278,7 +278,7 @@ static void populateQMColorComboBox(QuickMatchPreferences& pref)
 
 		colorName = TheGameText->fetch(def->getTooltipName().str());
 		newIndex = GadgetComboBoxAddEntry(comboBoxColor, colorName, def->getColor());
-		GadgetComboBoxSetItemData(comboBoxColor, newIndex, (void *)c);
+		GadgetComboBoxSetItemData(comboBoxColor, newIndex, (void *)(intptr_t)c);
 	}
 	GadgetComboBoxSetSelectedPos(comboBoxColor, pref.getColor());
 }
@@ -332,7 +332,7 @@ static void populateQMSideComboBox(Int favSide, const LadderInfo *li = nullptr)
 		seenSides.insert(side);
 
 		newIndex = GadgetComboBoxAddEntry(comboBoxSide, TheGameText->fetch(side), def->getColor());
-		GadgetComboBoxSetItemData(comboBoxSide, newIndex, (void *)c);
+		GadgetComboBoxSetItemData(comboBoxSide, newIndex, (void *)(intptr_t)c);
 
 		if (c == favSide)
 			entryToSelect = newIndex;
@@ -427,7 +427,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 	{
 		usedLadders.insert(info);
 		index = GadgetListBoxAddEntryText( win, info->name, favoriteColor, -1 );
-		GadgetListBoxSetItemData( win, (void *)(info->index), index );
+		GadgetListBoxSetItemData( win, (void *)(intptr_t)(info->index), index );
 		selectedPos = index;
 	}
 
@@ -446,7 +446,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 		{
 			usedLadders.insert(info);
 			index = GadgetListBoxAddEntryText( win, info->name, favoriteColor, -1 );
-			GadgetListBoxSetItemData( win, (void *)(info->index), index );
+			GadgetListBoxSetItemData( win, (void *)(intptr_t)(info->index), index );
 		}
 	}
 
@@ -460,7 +460,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 		{
 			usedLadders.insert(info);
 			index = GadgetListBoxAddEntryText( win, info->name, specialColor, -1 );
-			GadgetListBoxSetItemData( win, (void *)(info->index), index );
+			GadgetListBoxSetItemData( win, (void *)(intptr_t)(info->index), index );
 		}
 	}
 
@@ -473,7 +473,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 		{
 			usedLadders.insert(info);
 			index = GadgetListBoxAddEntryText( win, info->name, normalColor, -1 );
-			GadgetListBoxSetItemData( win, (void *)(info->index), index );
+			GadgetListBoxSetItemData( win, (void *)(intptr_t)(info->index), index );
 		}
 	}
 
@@ -518,7 +518,7 @@ void PopulateQMLadderComboBox()
 	{
 		usedLadders.insert(info);
 		index = GadgetComboBoxAddEntry( comboBoxLadder, info->name, specialColor );
-		GadgetComboBoxSetItemData( comboBoxLadder, index, (void *)(info->index) );
+		GadgetComboBoxSetItemData( comboBoxLadder, index, (void *)(intptr_t)(info->index) );
 		selectedPos = index;
 
 		// we selected a ladder?  No game size choice for us...
@@ -544,7 +544,7 @@ void PopulateQMLadderComboBox()
 		{
 			usedLadders.insert(info);
 			index = GadgetComboBoxAddEntry( comboBoxLadder, info->name, normalColor );
-			GadgetComboBoxSetItemData( comboBoxLadder, index, (void *)(info->index) );
+			GadgetComboBoxSetItemData( comboBoxLadder, index, (void *)(intptr_t)(info->index) );
 		}
 	}
 
