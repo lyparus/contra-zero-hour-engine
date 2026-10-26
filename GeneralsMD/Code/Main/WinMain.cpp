@@ -777,6 +777,9 @@ static CriticalSection critSec1, critSec2, critSec3, critSec4;
 static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info )
 {
 	DumpExceptionInfo( e_info->ExceptionRecord->ExceptionCode, e_info );
+	// Contra: crash report files (Debug.cpp) get the time of the dumps.
+	void ContraMarkCrashTime();
+	ContraMarkCrashTime();
 #ifdef RTS_ENABLE_CRASHDUMP
 	if (TheMiniDumper && TheMiniDumper->IsInitialized())
 	{
@@ -787,6 +790,9 @@ static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info 
 
 	MiniDumper::shutdownMiniDumper();
 #endif
+	// Contra: save ReleaseCrashInfo.txt and the crash report files, and tell the player which files to send.
+	void ContraReportUnhandledException();
+	ContraReportUnhandledException();
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
