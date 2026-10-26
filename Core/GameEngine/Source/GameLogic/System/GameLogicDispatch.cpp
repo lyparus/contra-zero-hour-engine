@@ -258,6 +258,7 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 	}
 
 	setClearingGameData( TRUE );
+	const DWORD clearStart = timeGetTime(); // Contra: timing of leaving a game
 
 //	m_background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
 //	DEBUG_ASSERTCRASH(m_background,("We Couldn't Load Menus/BlankWindow.wnd"));
@@ -283,8 +284,10 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 
 		destroyQuitMenu();
 	}
+	DEBUG_LOG(("Contra: clearGameData - score screen ready after %u ms", (unsigned)(timeGetTime() - clearStart)));
 
 	TheGameEngine->reset();
+	DEBUG_LOG(("Contra: clearGameData - engine reset done after %u ms", (unsigned)(timeGetTime() - clearStart)));
 	setGameMode(GAME_NONE);
 //	m_background->bringForward();
 //	if(shellGame)
@@ -309,6 +312,7 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 	}
 
 	setClearingGameData( FALSE );
+	DEBUG_LOG(("Contra: clearGameData took %u ms", (unsigned)(timeGetTime() - clearStart)));
 
 }
 

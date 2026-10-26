@@ -808,9 +808,12 @@ void GameEngine::resetSubsystems()
 {
 	// TheSuperHackers @fix xezon 09/06/2025 Reset GameLogic first to purge all world objects early.
 	// This avoids potentially catastrophic issues when objects and subsystems have cross dependencies.
+	const DWORD start = timeGetTime();
 	TheGameLogic->reset();
+	DEBUG_LOG(("Contra: reset of GameLogic took %u ms", (unsigned)(timeGetTime() - start)));
 
 	TheSubsystemList->resetAll();
+	DEBUG_LOG(("Contra: resetSubsystems took %u ms", (unsigned)(timeGetTime() - start)));
 }
 
 /// -----------------------------------------------------------------------------------------------
@@ -979,13 +982,22 @@ void GameEngine::update()
 			VERIFY_CRC
 
 			TheRadar->UPDATE();
+			const double afterRadar = s_loopPerf.now();
 
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
+			const double afterAudio = s_loopPerf.now();
 			TheGameClient->UPDATE();
+			const double afterGameClient = s_loopPerf.now();
 			TheMessageStream->propagateMessages();
 			afterClient = s_loopPerf.now();
+			// Contra: a loop that hangs for a long time is hard to explain from the 10 second averages; log its parts.
+			if (afterClient - loopStart >= 500.0)
+			{
+				DEBUG_LOG(("Contra: slow loop at frame %u: radar %.0f ms, audio %.0f ms, client %.0f ms, messages %.0f ms",
+					TheGameLogic->getFrame(), afterRadar - loopStart, afterAudio - afterRadar, afterGameClient - afterAudio, afterClient - afterGameClient));
+			}
 
 			if (TheNetwork != nullptr)
 			{
@@ -1037,6 +1049,11 @@ void GameEngine::update()
 		}
 
 		const double loopTime = s_loopPerf.now() - loopStart;
+		if (loopTime >= 500.0)
+		{
+			DEBUG_LOG(("Contra: slow loop at frame %u took %.0f ms: client %.0f ms, network %.0f ms, logic %.0f ms",
+				TheGameLogic->getFrame(), loopTime, afterClient - loopStart, afterNetwork - afterClient, loopLogicTime));
+		}
 		if (TheNetwork != nullptr && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame())
 		{
 			s_logicCapacity.addLoop(loopTime - loopLogicTime);

@@ -282,6 +282,7 @@ static Bool canSkipEndOfGame()
 static void skipEndOfGame()
 {
 	// Same steps as GameLogic::quit(FALSE) without the quit menu.
+	DEBUG_LOG(("Contra: Esc skips the end of the game at frame %u", TheGameLogic->getFrame()));
 	if (!TheGameLogic->isInSkirmishGame() && TheGameInfo && !TheGameInfo->isSandbox())
 	{
 		GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
