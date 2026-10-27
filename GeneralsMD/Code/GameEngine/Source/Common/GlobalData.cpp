@@ -1289,6 +1289,15 @@ UnsignedInt GlobalData::generateExeCRC()
 	exeCRC.set(GENERALSMD_104_CD_EXE_CRC);
 	DEBUG_LOG(("Fake EXE CRC is 0x%8.8X", exeCRC.get()));
 
+#elif 1
+	// Contra: the 32-bit and the 64-bit engine of one release compute the game alike (deterministic math) but are
+	// different files, so instead of the CRC of the executable file this is a build compatibility id. Change the
+	// text whenever a release can no longer play with the previous one. Used by the LAN lobby (join check) and replays.
+	{
+		static const char contraCompatibility[] = "Contra network build 1.4: deterministic math (GameMath), x86 and x64";
+		exeCRC.computeCRC(contraCompatibility, sizeof(contraCompatibility) - 1);
+		DEBUG_LOG(("Contra build compatibility CRC is 0x%8.8X", exeCRC.get()));
+	}
 #else
 	{
 		Char buffer[ _MAX_PATH ];

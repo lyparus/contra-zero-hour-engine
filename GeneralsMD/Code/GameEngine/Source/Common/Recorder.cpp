@@ -24,6 +24,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/ContraSessionFiles.h"
 #include "Common/Recorder.h"
 #include "Common/file.h"
 #include "Common/FileSystem.h"
@@ -740,6 +741,9 @@ void RecorderClass::archiveReplay(AsciiString fileName)
 
 	if (!CopyFile(sourcePath.str(), destPath.str(), FALSE))
 		DEBUG_LOG(("RecorderClass::archiveReplay: Failed to copy %s to %s", sourcePath.str(), destPath.str()));
+
+	// Contra: archiving is on by default, keep the newest 30 archived replays (the names start with date and time)
+	contra::keepNewestFiles(getReplayArchiveDir().str(), "*.rep", 30);
 }
 
 /**

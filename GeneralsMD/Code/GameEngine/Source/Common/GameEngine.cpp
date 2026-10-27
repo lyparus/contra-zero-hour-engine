@@ -102,6 +102,7 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#include "Common/ContraSessionFiles.h"
 #include "GameNetwork/FrameMetrics.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
@@ -879,8 +880,8 @@ DECLARE_PERF_TIMER(GameEngine_update)
 /** -----------------------------------------------------------------------------------------------
  * Update the game engine by updating the GameClient and GameLogic singletons.
  */
-// Contra: where does the time of a game loop go? Every 10 seconds one line is appended to PerfStats.txt in the user
-// data folder: loops and logic frames per second, average milliseconds spent in the client update (input, drawing),
+// Contra: where does the time of a game loop go? Every 10 seconds one line is appended to Stats\PerfStats-<match start>.txt
+// in the user data folder (one file per match, Common/ContraSessionFiles.h): loops and logic frames per second, average milliseconds spent in the client update (input, drawing),
 // in the network update and in the logic update, and the slowest single loop. In a network game the slowest
 // machine sets the game speed for everyone, so these numbers show whether logic or drawing is the bottleneck.
 namespace
@@ -909,8 +910,7 @@ namespace
 		{
 			if (loops > 0 && TheGlobalData != nullptr && TheGameLogic != nullptr && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame())
 			{
-				AsciiString path = TheGlobalData->getPath_UserData();
-				path.concat("PerfStats.txt");
+				AsciiString path = contra::statsFilePath("PerfStats");
 				FILE *fp = fopen(path.str(), "a");
 				if (fp != nullptr)
 				{

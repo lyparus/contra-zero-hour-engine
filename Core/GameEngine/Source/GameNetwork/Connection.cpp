@@ -25,6 +25,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/ContraSessionFiles.h"
 #include "GameNetwork/Connection.h"
 #include "GameNetwork/networkutil.h"
 #include "GameLogic/GameLogic.h"
@@ -441,10 +442,9 @@ void Connection::doRetryMetrics() {
 			m_statSends, m_statRetries, m_statAcks, m_smoothedRtt, m_rttVariation, (Int)getRetryInterval(nullptr), m_numRetries));
 
 		// Contra: keep a plain text record of the connection quality (also in release builds) so that a game
-		// played with friends leaves real numbers: NetworkStats.txt in the user data folder.
+		// played with friends leaves real numbers: Stats\NetworkStats-<match start>.txt in the user data folder.
 		if (TheGlobalData != nullptr && m_user != nullptr) {
-			AsciiString statsPath = TheGlobalData->getPath_UserData();
-			statsPath.concat("NetworkStats.txt");
+			AsciiString statsPath = contra::statsFilePath("NetworkStats");
 			FILE *fp = fopen(statsPath.str(), "a");
 			if (fp != nullptr) {
 				UnsignedInt peerAddr = m_user->GetIPAddr();

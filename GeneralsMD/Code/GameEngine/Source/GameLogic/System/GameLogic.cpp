@@ -86,6 +86,7 @@
 #include "GameLogic/CaveSystem.h"
 #include "GameLogic/CrateSystem.h"
 #include "GameLogic/FPUControl.h"
+#include "Common/ContraSessionFiles.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Object.h"
@@ -1168,6 +1169,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// Let CRC Logger know that a new game was started.
 	CRCDebugStartNewGame();
 #endif
+
+	// Contra: PerfStats/NetworkStats of this match go to their own files (Common/ContraSessionFiles.h).
+	if (!isInShellGame())
+	{
+		contra::startStatsSession();
+	}
 
 	setLoadingMap( TRUE );
 

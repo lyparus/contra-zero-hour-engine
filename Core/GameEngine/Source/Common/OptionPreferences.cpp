@@ -184,7 +184,7 @@ Bool OptionPreferences::getArchiveReplaysEnabled() const
 {
 	OptionPreferences::const_iterator it = find("ArchiveReplays");
 	if (it == end())
-		return FALSE;
+		return TRUE; // Contra: on by default, every match keeps its replay (ArchivedReplays, the newest 30)
 
 	if (stricmp(it->second.str(), "yes") == 0) {
 		return TRUE;

@@ -287,9 +287,14 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 			if (TheGlobalData->m_netMinPlayers > 0) {
 #endif
 // TheSuperHackers @todo Enable CRC checks!
+// Contra: in Zero Hour the exe CRC is checked (it is the build compatibility id, see GlobalData::generateExeCRC, so the
+// 32-bit and 64-bit engines of one release match). The INI CRC stays unchecked as in stock Zero Hour.
 #if !RTS_ZEROHOUR
 			if (msg->GameToJoin.iniCRC != TheGlobalData->m_iniCRC ||
 					msg->GameToJoin.exeCRC != TheGlobalData->m_exeCRC)
+#else
+			if (msg->GameToJoin.exeCRC != TheGlobalData->m_exeCRC)
+#endif
 			{
 				DEBUG_LOG(("LANAPI::handleRequestJoin - join denied because of CRC mismatch. CRCs are them/us INI:%X/%X exe:%X/%X",
 					msg->GameToJoin.iniCRC, TheGlobalData->m_iniCRC,
@@ -300,7 +305,6 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 				reply.GameNotJoined.playerIP = senderIP;
 				canJoin = false;
 			}
-#endif
 #if defined(RTS_DEBUG)
 			}
 #endif
