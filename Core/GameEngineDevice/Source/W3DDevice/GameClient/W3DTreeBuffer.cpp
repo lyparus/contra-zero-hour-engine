@@ -434,7 +434,7 @@ public:
 void W3DTreeBuffer::updateTexture()
 {
 
-	const Int MAX_TEX_WIDTH = 2048;
+	const Int MAX_TEX_WIDTH = 4096;	// Contra: 4096 for the 128 pixel tiles (TileData.h)
 
 	Int i, j;
 	Int maxHeight = 0;

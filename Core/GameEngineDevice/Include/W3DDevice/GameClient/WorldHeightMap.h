@@ -350,8 +350,9 @@ public:  // modify height value
 		if ((ndx>=0) && (ndx<m_dataSize) && m_data) m_data[ndx]=height;
 	};
 public: // Read tile utilities. jba [7/9/2003]
-	static Bool readTiles(InputStream *pStrm, TileData **tiles, Int numRows);
-	static Int countTiles(InputStream *pStrm, Bool *halfTile=nullptr);
+	// sourceExtent: pixels per cell in the .tga (64 for the original art, TILE_PIXEL_EXTENT for Art/TerrainHD)
+	static Bool readTiles(InputStream *pStrm, TileData **tiles, Int numRows, Int sourceExtent = TERRAIN_SOURCE_EXTENT);
+	static Int countTiles(InputStream *pStrm, Bool *halfTile=nullptr, Int sourceExtent = TERRAIN_SOURCE_EXTENT);
 
 protected:
 	void setCliffState(Int xIndex, Int yIndex, Bool state);

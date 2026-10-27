@@ -32,6 +32,7 @@
 #include "stdlib.h"
 #include <limits.h>
 #include "Common/STLTypedefs.h"
+#include <vector>
 
 #include "Common/DataChunk.h"
 //#include "Common/GameFileSystem.h"
@@ -1068,16 +1069,27 @@ void WorldHeightMap::readTexClass(TXTextureClass *texClass, TileData **tileData)
 		theFile = TheFileSystem->openFile( texClass->name.str(), File::READ|File::BINARY);
 #endif
 	}
-	else
+	Int sourceExtent = TERRAIN_SOURCE_EXTENT;
+	if (terrain != nullptr)
 	{
-		snprintf( texturePath, ARRAY_SIZE(texturePath), "%s%s", TERRAIN_TGA_DIR_PATH, terrain->getTexture().str() );
+		// Contra: an upscaled copy with twice the pixels per cell is preferred (see TILE_PIXEL_EXTENT in TileData.h)
+		snprintf( texturePath, ARRAY_SIZE(texturePath), "%s%s", "Art/TerrainHD/", terrain->getTexture().str() );
 		theFile = TheFileSystem->openFile( texturePath, File::READ|File::BINARY);
+		if (theFile != nullptr)
+		{
+			sourceExtent = TILE_PIXEL_EXTENT;
+		}
+		else
+		{
+			snprintf( texturePath, ARRAY_SIZE(texturePath), "%s%s", TERRAIN_TGA_DIR_PATH, terrain->getTexture().str() );
+			theFile = TheFileSystem->openFile( texturePath, File::READ|File::BINARY);
+		}
 	}
 
 	if (theFile != nullptr) {
 		GDIFileStream theStream(theFile);
 		InputStream *pStr = &theStream;
-		Int numTiles = WorldHeightMap::countTiles(pStr);
+		Int numTiles = WorldHeightMap::countTiles(pStr, nullptr, sourceExtent);
 		theFile->seek(0, File::START);
 		if (numTiles >= texClass->numTiles) {
 			numTiles = texClass->numTiles;
@@ -1088,7 +1100,7 @@ void WorldHeightMap::readTexClass(TXTextureClass *texClass, TileData **tileData)
 					break;
 				}
 			}
-			WorldHeightMap::readTiles(pStr, tileData+texClass->firstTile, width);
+			WorldHeightMap::readTiles(pStr, tileData+texClass->firstTile, width, sourceExtent);
 		}
 		theFile->close();
 	}
@@ -1369,7 +1381,7 @@ typedef struct {
 
 
 /// Count how many tiles come in from a targa file.
-Int WorldHeightMap::countTiles(InputStream *pStr, Bool *halfTile)
+Int WorldHeightMap::countTiles(InputStream *pStr, Bool *halfTile, Int sourceExtent)
 {
 	TTargaHeader hdr;
 	if (halfTile) {
@@ -1377,8 +1389,8 @@ Int WorldHeightMap::countTiles(InputStream *pStr, Bool *halfTile)
 	}
 	Int len = pStr->read(&hdr,sizeof(hdr));
 	if (len!=sizeof(hdr)) return(0);
-	Int tileWidth = hdr.imageWidth/TILE_PIXEL_EXTENT;
-	Int tileHeight = hdr.imageHeight/TILE_PIXEL_EXTENT;
+	Int tileWidth = hdr.imageWidth/sourceExtent;
+	Int tileHeight = hdr.imageHeight/sourceExtent;
 
 	if (hdr.colorMapType != 0) {
 		return(0); // we don't do indexed at this time. jba.
@@ -1404,24 +1416,27 @@ Int WorldHeightMap::countTiles(InputStream *pStr, Bool *halfTile)
 	if (tileWidth>=3 && tileHeight >=3) return(9);
 	if (tileWidth>=2 && tileHeight >=2) return(4);
 	if (tileWidth>=1 && tileHeight >=1) return(1);
-	if (halfTile && hdr.imageHeight==TILE_PIXEL_EXTENT/2 && hdr.imageWidth==TILE_PIXEL_EXTENT/2) {
+	if (halfTile && hdr.imageHeight==sourceExtent/2 && hdr.imageWidth==sourceExtent/2) {
 		*halfTile = true;
 		return 1;
 	}
 	return(0);
 }
 /*Break down a .tga file into a collection of tiles.  numRows * numRows total tiles.*/
-Bool WorldHeightMap::readTiles(InputStream *pStr, TileData **tiles, Int numRows)
+// Contra: the image has sourceExtent pixels per tile. It is read as a whole, then every tile is made at
+// TILE_PIXEL_EXTENT pixels: copied as it is (Art/TerrainHD) or upscaled with bilinear filtering. The image wraps
+// around at its edges (terrain textures repeat), so the upscaled tiles of one texture still fit together seamlessly.
+Bool WorldHeightMap::readTiles(InputStream *pStr, TileData **tiles, Int numRows, Int sourceExtent)
 {
 	TTargaHeader hdr;
 	pStr->read(&hdr, sizeof(hdr));
-	Int tileWidth = hdr.imageWidth/TILE_PIXEL_EXTENT;
-	Int tileHeight = hdr.imageHeight/TILE_PIXEL_EXTENT;
+	Int tileWidth = hdr.imageWidth/sourceExtent;
+	Int tileHeight = hdr.imageHeight/sourceExtent;
 
-	if (hdr.imageHeight==TILE_PIXEL_EXTENT/2) {
+	if (hdr.imageHeight==sourceExtent/2) {
 		tileHeight = 1;
 	}
-	if (hdr.imageWidth==TILE_PIXEL_EXTENT/2) {
+	if (hdr.imageWidth==sourceExtent/2) {
 		tileWidth = 1;
 	}
 
@@ -1442,11 +1457,15 @@ Bool WorldHeightMap::readTiles(InputStream *pStr, TileData **tiles, Int numRows)
 		if (tiles[i] == nullptr)
 			tiles[i] = MSGNEW("WorldHeightMap_readTiles") TileData;
 	}
+
+	// the whole image (numRows tiles of sourceExtent pixels square), bgra, in file row order like the tiles
+	const Int imageExtent = numRows*sourceExtent;
+	std::vector<UnsignedByte> image(imageExtent*imageExtent*TILE_BYTES_PER_PIXEL, 0);
+
 	UnsignedByte buf[4];
 	int repeatCount = 0;
-//	Bool read = false;
 	Bool running = false;
-	for (row = 0; row < numRows*TILE_PIXEL_EXTENT; row++) {
+	for (row = 0; row < imageExtent; row++) {
 		for (column=0; column<hdr.imageWidth; column++) {
 			UnsignedByte r, g, b, a;
 			if (row < hdr.imageHeight) {
@@ -1475,13 +1494,9 @@ Bool WorldHeightMap::readTiles(InputStream *pStr, TileData **tiles, Int numRows)
 			} else {
 				r = g = b = a = 0;
 			}
-			if (column >= (numRows*TILE_PIXEL_EXTENT)) continue;
-			int tileNdx = (column/TILE_PIXEL_EXTENT) + numRows*(row/TILE_PIXEL_EXTENT);
-			int pixelNdx = (column%TILE_PIXEL_EXTENT) + TILE_PIXEL_EXTENT*(row%TILE_PIXEL_EXTENT);
+			if (column >= imageExtent) continue;
 
-			UnsignedByte *pixel = tiles[tileNdx]->getDataPtr();
-
-			pixel += pixelNdx*TILE_BYTES_PER_PIXEL;
+			UnsignedByte *pixel = &image[(row*imageExtent + column)*TILE_BYTES_PER_PIXEL];
 			*pixel++ = b;
 			*pixel++ = g;
 			*pixel++ = r;
@@ -1490,7 +1505,36 @@ Bool WorldHeightMap::readTiles(InputStream *pStr, TileData **tiles, Int numRows)
 		}
 		DEBUG_ASSERTCRASH(repeatCount==0, ("Invalid tga."));
 	}
+
+	const Int scale = TILE_PIXEL_EXTENT/sourceExtent;
 	for (i=0; i<numRows*numRows; i++) {
+		const Int tileX = i % numRows;
+		const Int tileY = i / numRows;
+		UnsignedByte *dst = tiles[i]->getDataPtr();
+		for (Int y = 0; y < TILE_PIXEL_EXTENT; y++) {
+			for (Int x = 0; x < TILE_PIXEL_EXTENT; x++, dst += TILE_BYTES_PER_PIXEL) {
+				if (scale == 1) {
+					memcpy(dst, &image[((tileY*sourceExtent + y)*imageExtent + tileX*sourceExtent + x)*TILE_BYTES_PER_PIXEL], TILE_BYTES_PER_PIXEL);
+					continue;
+				}
+				// position in the source image (pixel centres), wrapping around the image
+				const Real sx = (tileX*TILE_PIXEL_EXTENT + x + 0.5f)/scale - 0.5f;
+				const Real sy = (tileY*TILE_PIXEL_EXTENT + y + 0.5f)/scale - 0.5f;
+				const Int x0 = (Int)floorf(sx), y0 = (Int)floorf(sy);
+				const Real fx = sx - x0, fy = sy - y0;
+				const Int xa = (x0 + imageExtent) % imageExtent, xb = (x0 + 1) % imageExtent;
+				const Int ya = (y0 + imageExtent) % imageExtent, yb = (y0 + 1) % imageExtent;
+				const UnsignedByte *p00 = &image[(ya*imageExtent + xa)*TILE_BYTES_PER_PIXEL];
+				const UnsignedByte *p10 = &image[(ya*imageExtent + xb)*TILE_BYTES_PER_PIXEL];
+				const UnsignedByte *p01 = &image[(yb*imageExtent + xa)*TILE_BYTES_PER_PIXEL];
+				const UnsignedByte *p11 = &image[(yb*imageExtent + xb)*TILE_BYTES_PER_PIXEL];
+				for (Int c = 0; c < TILE_BYTES_PER_PIXEL; c++) {
+					const Real top = p00[c] + (p10[c] - p00[c])*fx;
+					const Real bottom = p01[c] + (p11[c] - p01[c])*fx;
+					dst[c] = (UnsignedByte)(top + (bottom - top)*fy + 0.5f);
+				}
+			}
+		}
 		tiles[i]->updateMips();
 	}
 	return(true);

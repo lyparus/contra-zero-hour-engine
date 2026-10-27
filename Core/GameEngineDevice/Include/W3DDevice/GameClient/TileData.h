@@ -45,17 +45,23 @@ typedef struct {
 
 #define INVERTED_MASK	0x1		//AND this with TBlendTileInfo.inverted to get actual inverted state
 #define FLIPPED_MASK	0x2		//AND this with TBlendTileInfo.inverted to get forced flip state (for horizontal/vertical flips).
-#define TILE_PIXEL_EXTENT 64
+// Contra: sharper terrain. A terrain cell is drawn from a 128x128 pixel tile (was 64). The terrain art still has 64 pixels
+// per cell (TERRAIN_SOURCE_EXTENT): such textures are upscaled x2 when they are loaded and look as before. A texture in
+// Art/TerrainHD/ with the same name and twice the size (128 pixels per cell) is used instead when it exists. A map stores
+// how many cells a texture spans, which stays the same, so all maps keep working.
+#define TILE_PIXEL_EXTENT 128
+#define TERRAIN_SOURCE_EXTENT 64
 #define TILE_BYTES_PER_PIXEL 4
 #define DATA_LEN_BYTES TILE_PIXEL_EXTENT*TILE_PIXEL_EXTENT*TILE_BYTES_PER_PIXEL
 #define DATA_LEN_PIXELS TILE_PIXEL_EXTENT*TILE_PIXEL_EXTENT
-#define TILE_PIXEL_EXTENT_MIP1 32
-#define TILE_PIXEL_EXTENT_MIP2 16
-#define TILE_PIXEL_EXTENT_MIP3 8
-#define TILE_PIXEL_EXTENT_MIP4 4
-#define TILE_PIXEL_EXTENT_MIP5 2
-#define TILE_PIXEL_EXTENT_MIP6 1
-#define TEXTURE_WIDTH 2048 // was 1024 jba
+#define TILE_PIXEL_EXTENT_MIP1 64
+#define TILE_PIXEL_EXTENT_MIP2 32
+#define TILE_PIXEL_EXTENT_MIP3 16
+#define TILE_PIXEL_EXTENT_MIP4 8
+#define TILE_PIXEL_EXTENT_MIP5 4
+#define TILE_PIXEL_EXTENT_MIP6 2
+#define TILE_PIXEL_EXTENT_MIP7 1
+#define TEXTURE_WIDTH 4096 // was 1024 jba; Contra: 4096 for the 128 pixel tiles
 
 /** This class holds the bitmap data from the .tga texture files.  It is used to
 create the D3D texture in the game and 3d windows, and to create DIB data for the
@@ -69,12 +75,13 @@ protected:
 	// so 0,0 is lower left, not upper left.
 	UnsignedByte m_tileData[DATA_LEN_BYTES];
 	/// Mipped down copies of the tile data.
-	UnsignedByte m_tileDataMip32[TILE_PIXEL_EXTENT_MIP1*TILE_PIXEL_EXTENT_MIP1*TILE_BYTES_PER_PIXEL];
-	UnsignedByte m_tileDataMip16[TILE_PIXEL_EXTENT_MIP2*TILE_PIXEL_EXTENT_MIP2*TILE_BYTES_PER_PIXEL];
-	UnsignedByte m_tileDataMip8[TILE_PIXEL_EXTENT_MIP3*TILE_PIXEL_EXTENT_MIP3*TILE_BYTES_PER_PIXEL];
-	UnsignedByte m_tileDataMip4[TILE_PIXEL_EXTENT_MIP4*TILE_PIXEL_EXTENT_MIP4*TILE_BYTES_PER_PIXEL];
-	UnsignedByte m_tileDataMip2[TILE_PIXEL_EXTENT_MIP5*TILE_PIXEL_EXTENT_MIP5*TILE_BYTES_PER_PIXEL];
-	UnsignedByte m_tileDataMip1[TILE_PIXEL_EXTENT_MIP6*TILE_PIXEL_EXTENT_MIP6*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip64[TILE_PIXEL_EXTENT_MIP1*TILE_PIXEL_EXTENT_MIP1*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip32[TILE_PIXEL_EXTENT_MIP2*TILE_PIXEL_EXTENT_MIP2*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip16[TILE_PIXEL_EXTENT_MIP3*TILE_PIXEL_EXTENT_MIP3*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip8[TILE_PIXEL_EXTENT_MIP4*TILE_PIXEL_EXTENT_MIP4*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip4[TILE_PIXEL_EXTENT_MIP5*TILE_PIXEL_EXTENT_MIP5*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip2[TILE_PIXEL_EXTENT_MIP6*TILE_PIXEL_EXTENT_MIP6*TILE_BYTES_PER_PIXEL];
+	UnsignedByte m_tileDataMip1[TILE_PIXEL_EXTENT_MIP7*TILE_PIXEL_EXTENT_MIP7*TILE_BYTES_PER_PIXEL];
 
 public:
 	ICoord2D	m_tileLocationInTexture;
