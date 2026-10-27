@@ -188,10 +188,10 @@ void LANGameInfo::resetAccepted()
 		if (TheLAN->GetMyGame() == this && TheLAN->AmIHost())
 			LANEnableStartButton(true);
 	}
-	for(int i = 0; i< MAX_SLOTS; i++)
-	{
-		m_LANSlot[i].unAccept();
-	}
+	// Contra: players asked that a change of the game options (map, colors, factions, teams, money, slots) no longer
+	// clears everyone's "accept". The start countdown above is still cancelled, and a player who alt-tabs is still
+	// unaccepted (LANAPI::handleInActive). The host broadcasts the accept flags with the options, so this only has to
+	// change on the host.
 }
 // Misc game-related functionality --------------------
 

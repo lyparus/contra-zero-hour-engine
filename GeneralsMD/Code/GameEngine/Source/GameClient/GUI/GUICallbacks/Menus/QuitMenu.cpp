@@ -53,6 +53,7 @@
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/DisconnectMenu.h"
 #include "GameLogic/ScriptEngine.h"
+#include "GameNetwork/GameInfo.h"
 
 
 
@@ -263,10 +264,48 @@ Bool canOpenQuitMenu()
 }
 
 //-------------------------------------------------------------------------------------------------
+// Contra: after a multiplayer or skirmish game is decided for the local player (his alliance has won, or has lost
+// entirely), the map scripts play the victory/defeat music and then show the Victorious/Defeat window, and the quit
+// menu is blocked while the game is ending, so the players had to wait. Now Esc leaves to the score screen at once,
+// the same way as "Exit" in the quit menu does.
+//-------------------------------------------------------------------------------------------------
+static Bool canSkipEndOfGame()
+{
+	return TheGameLogic != nullptr && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame() &&
+		TheGameLogic->isInMultiplayerGame() && !TheGameLogic->isInReplayGame() &&
+		!TheGameLogic->isLoadingMap() && !TheGameLogic->isLoadingSave() &&
+		TheRecorder != nullptr && TheRecorder->isMultiplayer() && !TheRecorder->isPlaybackMode() &&
+		TheVictoryConditions != nullptr &&
+		(TheVictoryConditions->isLocalAlliedVictory() || TheVictoryConditions->isLocalAlliedDefeat());
+}
+
+static void skipEndOfGame()
+{
+	// Same steps as GameLogic::quit(FALSE) without the quit menu.
+	DEBUG_LOG(("Contra: Esc skips the end of the game at frame %u", TheGameLogic->getFrame()));
+	if (!TheGameLogic->isInSkirmishGame() && TheGameInfo && !TheGameInfo->isSandbox())
+	{
+		GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
+		msg->appendBooleanArgument(TRUE);
+	}
+	if (TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+	{
+		TheRecorder->stopRecording();
+	}
+	TheGameLogic->exitGame();
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Toggle visibility of the quit menu */
 //-------------------------------------------------------------------------------------------------
 void ToggleQuitMenu()
 {
+	if (!isVisible && canSkipEndOfGame())
+	{
+		skipEndOfGame();
+		return;
+	}
+
 	if (!isVisible && !canOpenQuitMenu())
 		return;
 

@@ -32,6 +32,8 @@
 #include "GameClient/Display.h"
 #include "GameNetwork/networkutil.h"
 
+Real TheLogicCapacityFps = 0.0f;
+
 FrameMetrics::FrameMetrics()
 {
 	m_averageFps = 0.0f;
@@ -87,7 +89,13 @@ void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
 //			DEBUG_LOG(("FrameMetrics::doPerFrameMetrics - adding %f to fps history. average before: %f ", m_fpsList[m_fpsListIndex], m_averageFps));
 //		}
 		m_averageFps -= ((m_fpsList[m_fpsListIndex])) / TheGlobalData->m_networkFPSHistoryLength; // subtract out the old value from the average.
-		m_fpsList[m_fpsListIndex] = TheDisplay->getAverageFPS();
+		// Contra: the packet router sets the game speed to the lowest fps reported by the players. A machine that draws
+		// slowly but can still run 30 logic frames per second (by skipping drawing) should not slow everyone down.
+		Real fps = TheDisplay->getAverageFPS();
+		if (TheLogicCapacityFps > fps) {
+			fps = TheLogicCapacityFps;
+		}
+		m_fpsList[m_fpsListIndex] = fps;
 //		m_fpsList[m_fpsListIndex] = TheGameClient->getFrame() - m_fpsStartingFrame;
 		m_averageFps += ((Real)(m_fpsList[m_fpsListIndex])) / TheGlobalData->m_networkFPSHistoryLength; // add the new value to the average.
 //		DEBUG_LOG(("average after: %f", m_averageFps));

@@ -180,7 +180,14 @@ void SubsystemInterfaceList::resetAll()
 //	for (SubsystemList::iterator it = m_subsystems.begin(); it != m_subsystems.end(); ++it)
 	for (SubsystemList::reverse_iterator it = m_subsystems.rbegin(); it != m_subsystems.rend(); ++it)
 	{
+		// Contra: leaving a game can take many seconds; log which subsystem resets slowly.
+		const DWORD start = timeGetTime();
 		(*it)->reset();
+		const DWORD ms = timeGetTime() - start;
+		if (ms >= 20)
+		{
+			DEBUG_LOG(("Contra: reset of subsystem '%s' took %u ms", (*it)->getName().str(), (unsigned)ms));
+		}
 	}
 }
 

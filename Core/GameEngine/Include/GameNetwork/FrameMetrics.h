@@ -28,6 +28,11 @@
 
 #include "GameNetwork/NetworkDefs.h"
 
+// Contra: logic frames per second this machine can sustain when it is allowed to run several logic frames in one
+// game loop (skipping the drawing in between). Set by the game engine every loop; 0 = unknown, then the display fps
+// is reported instead, as in the original game.
+extern Real TheLogicCapacityFps;
+
 class FrameMetrics {
 public:
 	FrameMetrics();

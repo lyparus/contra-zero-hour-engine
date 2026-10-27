@@ -102,6 +102,7 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/FrameMetrics.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
@@ -789,9 +790,12 @@ void GameEngine::resetSubsystems()
 {
 	// TheSuperHackers @fix xezon 09/06/2025 Reset GameLogic first to purge all world objects early.
 	// This avoids potentially catastrophic issues when objects and subsystems have cross dependencies.
+	const DWORD start = timeGetTime();
 	TheGameLogic->reset();
+	DEBUG_LOG(("Contra: reset of GameLogic took %u ms", (unsigned)(timeGetTime() - start)));
 
 	TheSubsystemList->resetAll();
+	DEBUG_LOG(("Contra: resetSubsystems took %u ms", (unsigned)(timeGetTime() - start)));
 }
 
 /// -----------------------------------------------------------------------------------------------
@@ -924,6 +928,28 @@ namespace
 		}
 	};
 	LoopPerf s_loopPerf;
+
+	// Contra: in a network game every machine runs the logic at the same rate, and originally at most one logic frame
+	// ran per game loop, so a machine that draws only 25 frames per second held the whole game at 25 logic frames per
+	// second. Now a machine that is behind the network schedule runs up to this many logic frames in one loop, drawing
+	// once for all of them. The logic itself is unchanged (same frames, same commands), so this cannot desync.
+	const Int MaxLogicFramesPerLoop = 3;
+
+	// Running averages of the time a loop spends outside the logic (input, drawing, network) and of one logic frame,
+	// used to estimate how many logic frames per second this machine could sustain with catch-up frames.
+	struct LogicCapacity
+	{
+		double otherMs, logicMs;
+		LogicCapacity() : otherMs(0.0), logicMs(0.0) {}
+		void addLoop(double ms) { otherMs = (otherMs == 0.0) ? ms : otherMs + (ms - otherMs) * 0.05; }
+		void addLogicFrame(double ms) { logicMs = (logicMs == 0.0) ? ms : logicMs + (ms - logicMs) * 0.05; }
+		Real fps() const
+		{
+			const double ms = otherMs + MaxLogicFramesPerLoop * logicMs;
+			return ms > 0.0 ? (Real)min(100.0, MaxLogicFramesPerLoop * 1000.0 / ms) : 0.0f;
+		}
+	};
+	LogicCapacity s_logicCapacity;
 }
 
 void GameEngine::update()
@@ -938,13 +964,22 @@ void GameEngine::update()
 			VERIFY_CRC
 
 			TheRadar->UPDATE();
+			const double afterRadar = s_loopPerf.now();
 
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
+			const double afterAudio = s_loopPerf.now();
 			TheGameClient->UPDATE();
+			const double afterGameClient = s_loopPerf.now();
 			TheMessageStream->propagateMessages();
 			afterClient = s_loopPerf.now();
+			// Contra: a loop that hangs for a long time is hard to explain from the 10 second averages; log its parts.
+			if (afterClient - loopStart >= 500.0)
+			{
+				DEBUG_LOG(("Contra: slow loop at frame %u: radar %.0f ms, audio %.0f ms, client %.0f ms, messages %.0f ms",
+					TheGameLogic->getFrame(), afterRadar - loopStart, afterAudio - afterRadar, afterGameClient - afterAudio, afterClient - afterGameClient));
+			}
 
 			if (TheNetwork != nullptr)
 			{
@@ -953,10 +988,30 @@ void GameEngine::update()
 			afterNetwork = s_loopPerf.now();
 		}
 
-		double logicTime = 0.0;
+		double loopLogicTime = 0.0;
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
-		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
+		for (Int logicFrame = 0; logicFrame < MaxLogicFramesPerLoop; ++logicFrame)
 		{
+			if (logicFrame > 0)
+			{
+				// Contra: catch-up frame. Only in a running network game where this player is still connected (after
+				// leaving, the network reports frame data as always ready), and only while the network schedule says
+				// the next frame is already due.
+				if (TheNetwork == nullptr || !TheGameLogic->isInGame() || TheGameLogic->isInShellGame() || TheGameLogic->isGamePaused()
+					|| !TheNetwork->isPlayerConnected(TheNetwork->getLocalPlayerID()))
+				{
+					break;
+				}
+				const double networkStart = s_loopPerf.now();
+				TheNetwork->UPDATE();
+				s_loopPerf.networkMs += s_loopPerf.now() - networkStart;
+			}
+
+			if (!canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
+			{
+				break;
+			}
+
 			const double logicStart = s_loopPerf.now();
 			TheGameLogic->UPDATE();
 
@@ -964,16 +1019,33 @@ void GameEngine::update()
 			{
 				TheGameClient->step();
 			}
-			logicTime = s_loopPerf.now() - logicStart;
+			const double logicTime = s_loopPerf.now() - logicStart;
+			loopLogicTime += logicTime;
 			++s_loopPerf.logicFrames;
 			s_loopPerf.logicMs += logicTime;
 			if (logicTime > s_loopPerf.maxLogicMs)
 			{
 				s_loopPerf.maxLogicMs = logicTime;
 			}
+			s_logicCapacity.addLogicFrame(logicTime);
 		}
 
 		const double loopTime = s_loopPerf.now() - loopStart;
+		if (loopTime >= 500.0)
+		{
+			DEBUG_LOG(("Contra: slow loop at frame %u took %.0f ms: client %.0f ms, network %.0f ms, logic %.0f ms",
+				TheGameLogic->getFrame(), loopTime, afterClient - loopStart, afterNetwork - afterClient, loopLogicTime));
+		}
+		if (TheNetwork != nullptr && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame())
+		{
+			s_logicCapacity.addLoop(loopTime - loopLogicTime);
+			TheLogicCapacityFps = s_logicCapacity.fps();
+		}
+		else
+		{
+			s_logicCapacity = LogicCapacity();
+			TheLogicCapacityFps = 0.0f;
+		}
 		++s_loopPerf.loops;
 		s_loopPerf.clientMs += afterClient - loopStart;
 		s_loopPerf.networkMs += afterNetwork - afterClient;
