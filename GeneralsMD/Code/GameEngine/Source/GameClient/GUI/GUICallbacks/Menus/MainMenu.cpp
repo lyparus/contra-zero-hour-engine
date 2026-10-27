@@ -54,6 +54,8 @@
 #include "GameClient/KeyDefs.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetStaticText.h"
+#include "gitinfo.h"
+#include "GameClient/GameFont.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/WindowVideoManager.h"
 #include "GameClient/CampaignManager.h"
@@ -405,12 +407,85 @@ GameWindow *win = nullptr;
 
 }
 
+// Contra: the main menu of Contra has no version label, so a small one is made here in the lower left corner:
+// "Contra: network build <version>, author ... (engine <commit>)". The version is the first line of
+// ContraNetworkBuild.version, which the installer of the network build writes into the game folder, so a release that
+// changes no engine code does not need a new engine.
+static void initContraBuildLabel()
+{
+	if (parentMainMenu == nullptr || TheDisplay == nullptr)
+		return;
+
+	UnicodeString version;
+	FILE *fp = fopen("ContraNetworkBuild.version", "r");
+	if (fp != nullptr)
+	{
+		char line[64] = "";
+		if (fgets(line, sizeof(line), fp) != nullptr)
+		{
+			line[strcspn(line, "\r\n")] = '\0';
+			version.translate(AsciiString(line));
+		}
+		fclose(fp);
+	}
+
+	UnicodeString text(L"Contra: \u0441\u0435\u0442\u0435\u0432\u0430\u044F \u0441\u0431\u043E\u0440\u043A\u0430");
+	if (!version.isEmpty())
+	{
+		text.concat(L" ");
+		text.concat(version);
+	}
+	text.concat(L", \u0430\u0432\u0442\u043E\u0440 Jusup Latypov");
+	UnicodeString engine;
+	engine.format(L" (%hs %hs)", sizeof(void *) == 8 ? "x64" : "x86", GitShortSHA1);
+	text.concat(engine);
+
+	// the main menu is initialized again whenever it is shown: reuse the label made before
+	const NameKeyType labelID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ContraBuildLabel" );
+	GameWindow *label = TheWindowManager->winGetWindowFromId( parentMainMenu, labelID );
+	if (label == nullptr)
+	{
+		WinInstanceData instData;
+		instData.init();
+		instData.m_style = GWS_STATIC_TEXT;
+		TextData textData = {};		// all of it: the margins are used for drawing
+		textData.centered = FALSE;
+		textData.centeredVertically = TRUE;
+		textData.leftMargin = 0;
+		textData.topMargin = 0;
+		const Int height = 48;	// fonts are scaled up with the resolution; a low field clips the text away
+		label = TheWindowManager->gogoGadgetStaticText( parentMainMenu, WIN_STATUS_ENABLED,
+			8, TheDisplay->getHeight() - height - 6, TheDisplay->getWidth() / 2, height,
+			&instData, &textData, nullptr, TRUE );
+		if (label != nullptr)
+			label->winSetWindowId( labelID );
+	}
+	if (label != nullptr)
+	{
+		// no background and border (a window made in code gets a debug red background), light text with a dark outline
+		GadgetStaticTextSetEnabledColor( label, WIN_COLOR_UNDEFINED );
+		GadgetStaticTextSetEnabledBorderColor( label, WIN_COLOR_UNDEFINED );
+		GadgetStaticTextSetDisabledColor( label, WIN_COLOR_UNDEFINED );
+		GadgetStaticTextSetDisabledBorderColor( label, WIN_COLOR_UNDEFINED );
+		GadgetStaticTextSetHiliteColor( label, WIN_COLOR_UNDEFINED );
+		GadgetStaticTextSetHiliteBorderColor( label, WIN_COLOR_UNDEFINED );
+		GameFont *font = TheFontLibrary ? TheFontLibrary->getFont( "Arial", 12, FALSE ) : nullptr;
+		if (font != nullptr)
+			GadgetStaticTextSetFont( label, font );
+		label->winSetEnabledTextColors( GameMakeColor( 230, 230, 230, 255 ), GameMakeColor( 0, 0, 0, 255 ) );
+		GadgetStaticTextSetText( label, text );
+	}
+}
+
 // TheSuperHackers @tweak Now prints version information in an optional version label.
 // Originally this label does not exist in the Main Menu. It can be copied from the Options Menu.
 static void initLabelVersion()
 {
 	NameKeyType versionID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:LabelVersion" );
 	GameWindow *labelVersion = TheWindowManager->winGetWindowFromId( nullptr, versionID );
+
+	if (labelVersion == nullptr)
+		initContraBuildLabel();
 
 	if (labelVersion)
 	{
