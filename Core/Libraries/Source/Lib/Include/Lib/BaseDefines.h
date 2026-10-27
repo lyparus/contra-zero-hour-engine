@@ -32,6 +32,9 @@
 #endif
 #endif
 
-#if !HAS_GAMEMATH || RETAIL_COMPATIBLE_CRC
+// Contra: deterministic math is used even though the rest of the game stays retail compatible. Our 32-bit and 64-bit
+// builds must compute the game simulation bit for bit alike, which the math functions of the 32-bit and the 64-bit
+// MSVC runtime do not. This gives up compatibility with replays and games of retail and of Contra 1.3 and older.
+#if !HAS_GAMEMATH
 #undef USE_DETERMINISTIC_MATH // Unfortunately cannot actually use deterministic math
 #endif
