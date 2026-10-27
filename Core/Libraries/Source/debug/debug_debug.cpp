@@ -445,7 +445,10 @@ bool Debug::AssertDone()
 #if defined(_MSC_VER) && defined(_M_X64)
           __debugbreak();
 #elif defined(_MSC_VER)
-          _asm int 0x03
+          _asm
+          {
+            int 0x03
+          }
 #elif defined(__GNUC__)
           __builtin_trap();
 #else
@@ -721,7 +724,10 @@ bool Debug::CrashDone(bool die)
 #if defined(_MSC_VER) && defined(_M_X64)
             __debugbreak();
 #elif defined(_MSC_VER)
-            _asm int 0x03
+            _asm
+            {
+              int 0x03
+            }
 #elif defined(__GNUC__)
             __builtin_trap();
 #else
@@ -1241,7 +1247,7 @@ Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
   else
   {
     // no, just add file name (without path though)
-    e->fileOrGroup=fileOrGroup?strrchr(fileOrGroup,'\\'):nullptr;
+    e->fileOrGroup=fileOrGroup?strrpbrk(fileOrGroup,"/\\"):nullptr;
     e->fileOrGroup=e->fileOrGroup?e->fileOrGroup+1:fileOrGroup;
   }
 
@@ -1278,7 +1284,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
   char help[200];
 
   // do we need to strip down fileOrGroup?
-  const char *p=strrchr(fileOrGroup,'\\');
+  const char *p=strrpbrk(fileOrGroup,"/\\");
   const char *q=strchr(p?p:fileOrGroup,'.');
   if (p||q)
   {
