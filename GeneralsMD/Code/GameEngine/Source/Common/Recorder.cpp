@@ -1035,7 +1035,9 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 
 			// TheSuperHackers @tweak Pause the game on mismatch.
 			// But not when a window with focus is opened, because that can make resuming difficult.
-			if (TheWindowManager->winGetFocus() == nullptr)
+			// Contra: not with -contraReplayNoPause (CommandLine.cpp), which compares whole replays between builds.
+			extern Bool g_contraReplayNoPause;
+			if (TheWindowManager->winGetFocus() == nullptr && !g_contraReplayNoPause)
 			{
 				Bool pause = TRUE;
 				Bool pauseMusic = FALSE;

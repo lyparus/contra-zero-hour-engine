@@ -423,6 +423,15 @@ Int parseHeadless(char *args[], int num)
 	return 1;
 }
 
+// Contra: -contraReplayNoPause keeps a replay running after a CRC mismatch instead of pausing it. Used to compare the
+// CRCs of whole replays between the 32-bit and the 64-bit engine (C:\zh\tools\replay_check.ps1); no effect on games.
+Bool g_contraReplayNoPause = FALSE;
+Int parseContraReplayNoPause(char *args[], int num)
+{
+	g_contraReplayNoPause = TRUE;
+	return 1;
+}
+
 Int parseReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1175,6 +1184,7 @@ static CommandLineParam paramsForStartup[] =
 	// You can pass this multiple times to play back multiple replays.
 	// You can also include wildcards. The file must be in the replay folder or in a subfolder.
 	{ "-replay", parseReplay },
+	{ "-contraReplayNoPause", parseContraReplayNoPause },
 
 	// TheSuperHackers @feature helmutbuhler 23/05/2025
 	// Simulate each replay in a separate process and use 1..N processes at the same time.
