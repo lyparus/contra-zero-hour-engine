@@ -236,7 +236,11 @@ WWINLINE float WWMath::Powf(float x, float y)
 WWINLINE float WWMath::Sqrt(float x)
 {
 #if USE_DETERMINISTIC_MATH
+#if CONTRA_SSE_SQRT
+	return Contra_Sqrtf(x);
+#else
 	return gm_sqrtf(x);
+#endif
 #else
 	return sqrtf(x);
 #endif
@@ -245,7 +249,11 @@ WWINLINE float WWMath::Sqrt(float x)
 WWINLINE double WWMath::Sqrt(double x)
 {
 #if USE_DETERMINISTIC_MATH
+#if CONTRA_SSE_SQRT
+	return Contra_Sqrt(x);
+#else
 	return gm_sqrt(x);
+#endif
 #else
 	return sqrt(x);
 #endif
@@ -254,7 +262,11 @@ WWINLINE double WWMath::Sqrt(double x)
 WWINLINE float WWMath::Sqrtf(float x)
 {
 #if USE_DETERMINISTIC_MATH
+#if CONTRA_SSE_SQRT
+	return Contra_Sqrtf(x);
+#else
 	return gm_sqrtf(x);
+#endif
 #else
 	return sqrtf(x);
 #endif
@@ -263,7 +275,11 @@ WWINLINE float WWMath::Sqrtf(float x)
 WWINLINE float WWMath::Inv_Sqrt_Legacy(float a)
 {
 #if USE_DETERMINISTIC_MATH
+#if CONTRA_SSE_SQRT
+	return 1.0f / Contra_Sqrtf(a);
+#else
 	return 1.0f / gm_sqrtf(a);
+#endif
 
 #elif defined(_MSC_VER) && defined(_M_IX86)
 	// Some 30% faster inverse square root than regular C++ compiled, from Intel's math library

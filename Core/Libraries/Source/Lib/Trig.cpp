@@ -84,7 +84,11 @@ Real ASin(Real x)
 Real Sqrt(Real x)
 {
 #if USE_DETERMINISTIC_MATH
+#if CONTRA_SSE_SQRT
+	return Contra_Sqrtf(x);
+#else
 	return gm_sqrtf(x);
+#endif
 #else
 	return (Real)sqrt((double)x);
 #endif
@@ -93,7 +97,11 @@ Real Sqrt(Real x)
 double Sqrt(double x)
 {
 #if USE_DETERMINISTIC_MATH
+#if CONTRA_SSE_SQRT
+	return Contra_Sqrt(x);
+#else
 	return gm_sqrt(x);
+#endif
 #else
 	return sqrt(x);
 #endif

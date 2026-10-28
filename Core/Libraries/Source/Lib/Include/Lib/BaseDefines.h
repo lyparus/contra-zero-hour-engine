@@ -38,3 +38,14 @@
 #if !HAS_GAMEMATH
 #undef USE_DETERMINISTIC_MATH // Unfortunately cannot actually use deterministic math
 #endif
+
+// Contra: square roots of the deterministic math by the SSE instruction instead of gm_sqrtf/gm_sqrt. IEEE 754 requires
+// sqrt to be correctly rounded and GameMath's sqrt (fdlibm, bit by bit) is correctly rounded too, so the results are the
+// same bit for bit on x86 and x64 (round to nearest, as the game never changes the SSE rounding mode); the instruction is
+// many times faster, and the distance checks of the target search call it a lot (~13% of the logic in big battles).
+#if USE_DETERMINISTIC_MATH && (defined(_M_IX86) || defined(_M_X64))
+#include <emmintrin.h>
+#define CONTRA_SSE_SQRT (1)
+inline float Contra_Sqrtf(float x) { return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(x))); }
+inline double Contra_Sqrt(double x) { __m128d v = _mm_set_sd(x); return _mm_cvtsd_f64(_mm_sqrt_sd(v, v)); }
+#endif
