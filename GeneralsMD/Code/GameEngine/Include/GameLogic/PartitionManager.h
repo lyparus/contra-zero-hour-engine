@@ -1250,6 +1250,9 @@ private:
 	Int							m_cellCountY;			///< number of cells, y
 	Int							m_totalCellCount;	///< x * y
 	PartitionCell*	m_cells;					///< array of cells
+	// Contra: copy of each cell's first COI, packed. The target search (getClosestObjects) walks rings of cells and most
+	// are empty; reading this tells it without loading the big PartitionCell (shroud/threat/cash per player) of each one.
+	CellAndObjectIntersection**	m_cellCoiHeads;
 	PartitionData*	m_dirtyModules;
 	Bool						m_updatedSinceLastReset;	///< Used to force a return of OBJECTSHROUD_INVALID before update has been called.
 
@@ -1345,6 +1348,7 @@ public:
 
 	/// return the PartitionCell located at cell coordinates (x,y).
 	PartitionCell *getCellAt(Int x, Int y);
+	void friend_setCellCoiHead(Int x, Int y, CellAndObjectIntersection *head) { if (m_cellCoiHeads) m_cellCoiHeads[y * m_cellCountX + x] = head; }
 	const PartitionCell *getCellAt(Int x, Int y) const;
 
 	/// A convenience function to reveal shroud at some location

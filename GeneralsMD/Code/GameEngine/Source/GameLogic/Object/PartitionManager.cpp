@@ -1438,6 +1438,7 @@ void PartitionCell::friend_addToCellList(CellAndObjectIntersection *coi)
 	{
 		coi->friend_addToCellList(&m_firstCoiInCell);
 		++m_coiCount;
+		ThePartitionManager->friend_setCellCoiHead(m_cellX, m_cellY, m_firstCoiInCell);
 	}
 }
 
@@ -1448,6 +1449,7 @@ void PartitionCell::friend_removeFromCellList(CellAndObjectIntersection *coi)
 	{
 		coi->friend_removeFromCellList(&m_firstCoiInCell);
 		--m_coiCount;
+		ThePartitionManager->friend_setCellCoiHead(m_cellX, m_cellY, m_firstCoiInCell);
 	}
 }
 
@@ -2599,6 +2601,7 @@ PartitionManager::PartitionManager()
 	m_cellCountY = 0;
 	m_totalCellCount = 0;
 	m_cells = nullptr;
+	m_cellCoiHeads = nullptr;
 	m_worldExtents.lo.zero();
 	m_worldExtents.hi.zero();
 	m_dirtyModules = nullptr;
@@ -2666,6 +2669,9 @@ void PartitionManager::init()
 		m_cellCountY = REAL_TO_INT_CEIL(m_worldExtents.height() * m_cellSizeInv);
 		m_totalCellCount = m_cellCountX * m_cellCountY;
 		m_cells = MSGNEW("PartitionManager_Cells") PartitionCell[m_totalCellCount];
+		m_cellCoiHeads = MSGNEW("PartitionManager_CellCoiHeads") CellAndObjectIntersection*[m_totalCellCount];
+		for (Int i = 0; i < m_totalCellCount; ++i)
+			m_cellCoiHeads[i] = nullptr;
 		for (Int x = 0; x < m_cellCountX; x++)
 		{
 			for (Int y = 0; y < m_cellCountY; y++)
@@ -2692,6 +2698,7 @@ void PartitionManager::init()
 		m_cellCountY = 0;
 		m_totalCellCount = 0;
 		m_cells = nullptr;
+		m_cellCoiHeads = nullptr;
 		m_worldExtents.lo.zero();
 		m_worldExtents.hi.zero();
 	}
@@ -2754,6 +2761,8 @@ void PartitionManager::shutdown()
 
 	delete [] m_cells;
 	m_cells = nullptr;
+	delete [] m_cellCoiHeads;
+	m_cellCoiHeads = nullptr;
 
 	m_cellSize = m_cellSizeInv = 0.0f;
 	m_cellCountX = 0;
@@ -3362,11 +3371,14 @@ Object *PartitionManager::getClosestObjects(
 			continue;
     for (OffsetVec::const_iterator it = offsets.begin(); it != offsets.end(); ++it)
 		{
-			PartitionCell* thisCell = getCellAt(cellCenterX + it->x, cellCenterY + it->y);
-			if (thisCell == nullptr)
+			const Int cx = cellCenterX + it->x;
+			const Int cy = cellCenterY + it->y;
+			if (cx < 0 || cy < 0 || cx >= m_cellCountX || cy >= m_cellCountY)
 				continue;
+			CellAndObjectIntersection *firstCoi = m_cellCoiHeads[cy * m_cellCountX + cx];
+			DEBUG_ASSERTCRASH(firstCoi == m_cells[cy * m_cellCountX + cx].getFirstCoiInCell(), ("Contra: m_cellCoiHeads out of sync"));
 
-			for (CellAndObjectIntersection *thisCoi = thisCell->getFirstCoiInCell(); thisCoi; thisCoi = thisCoi->getNextCoi())
+			for (CellAndObjectIntersection *thisCoi = firstCoi; thisCoi; thisCoi = thisCoi->getNextCoi())
 			{
 				PartitionData *thisMod = thisCoi->getModule();
 				Object *thisObj = thisMod->getObject();

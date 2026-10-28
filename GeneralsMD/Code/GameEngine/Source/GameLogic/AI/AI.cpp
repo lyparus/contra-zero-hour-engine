@@ -344,6 +344,7 @@ void AI::reset()
 
 	m_groupList.clear(); // Clear just in case...
 #endif
+	m_groupIndex.clear();
 
 	m_nextGroupID = 0;
 	m_nextFormationID = NO_FORMATION_ID;
@@ -456,8 +457,10 @@ AIGroupPtr AI::createGroup()
 //	DEBUG_LOG(("***AIGROUP %x is being added to m_groupList.", group ));
 #if RETAIL_COMPATIBLE_AIGROUP
 	m_groupList.push_back( group );
+	m_groupIndex[group] = --m_groupList.end();
 #else
 	m_groupList.push_back( group.Peek() );
+	m_groupIndex[group.Peek()] = --m_groupList.end();
 #endif
 
 	return group;
@@ -468,11 +471,13 @@ AIGroupPtr AI::createGroup()
  */
 void AI::destroyGroup( AIGroup *group )
 {
-	std::list<AIGroup *>::iterator i = std::find( m_groupList.begin(), m_groupList.end(), group );
+	std::unordered_map<AIGroup *, std::list<AIGroup *>::iterator>::iterator found = m_groupIndex.find( group );
 
 	// make sure group is actually in the list
-	if (i == m_groupList.end())
+	if (found == m_groupIndex.end())
 		return;
+	std::list<AIGroup *>::iterator i = found->second;
+	m_groupIndex.erase( found );
 
 	DEBUG_ASSERTCRASH(group != nullptr, ("A null group made its way into the AIGroup list.. jkmcd"));
 
@@ -500,7 +505,7 @@ AIGroup *AI::findGroup( UnsignedInt id )
 
 Bool AI::doesGroupExist(AIGroup* group) const
 {
-	return std::find(m_groupList.begin(), m_groupList.end(), group) != m_groupList.end();
+	return m_groupIndex.find(group) != m_groupIndex.end();
 }
 
 //--------------------------------------------------------------------------------------------------------

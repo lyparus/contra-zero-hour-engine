@@ -34,6 +34,7 @@
 #include "Common/GameType.h"
 #include "GameLogic/Damage.h"
 #include "Common/STLTypedefs.h"
+#include <unordered_map>
 
 class AIGroup;
 class AttackPriorityInfo;
@@ -300,6 +301,9 @@ public:
 protected:
 	Pathfinder *m_pathfinder;							///< the pathfinding system
 	std::list<AIGroup *> m_groupList;			///< the list of AIGroups
+	// Contra: where each group is in m_groupList. destroyGroup/doesGroupExist searched the whole list (thousands of
+	// groups in long games, ~2% of the logic); the list itself and its order stay as they were.
+	std::unordered_map<AIGroup *, std::list<AIGroup *>::iterator> m_groupIndex;
 	TAiData *m_aiData;
 	void newOverride();
 	void addSideInfo(AISideInfo *info);

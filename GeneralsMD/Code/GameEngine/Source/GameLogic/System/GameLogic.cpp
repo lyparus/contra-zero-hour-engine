@@ -2590,14 +2590,47 @@ void GameLogic::processDestroyList()
 		UpdateModulePtr sleepyUpdatesForThisObject[MAX_SUO];
 		Int numSUO = 0;
 
-		for (std::vector<UpdateModulePtr>::iterator it2 = m_sleepyUpdates.begin(); it2 != m_sleepyUpdates.end(); ++it2)
+		// Contra: the sleepy updates of an object are the update modules of its behaviors (registerObject), so take them
+		// from the object, sorted by their place in m_sleepyUpdates = the order the scan of the whole list found them in
+		// (that scan cost ~3% of the logic in big battles). Same modules, same order, same erasing.
 		{
-			UpdateModulePtr u = *it2;
-			if (u->friend_getObject() == currentObject && numSUO < MAX_SUO)
+			UpdateModulePtr own[MAX_SUO];
+			Int numOwn = 0;
+			for (BehaviorModule** b = currentObject->getBehaviorModules(); *b && numOwn < MAX_SUO; ++b)
 			{
-				sleepyUpdatesForThisObject[numSUO++] = u;
+#ifdef DIRECT_UPDATEMODULE_ACCESS
+				UpdateModulePtr u = (UpdateModulePtr)((*b)->getUpdate());
+#else
+				UpdateModulePtr u = (*b)->getUpdate();
+#endif
+				if (!u)
+					continue;
+				Int idx = u->friend_getIndexInLogic();
+				if (idx >= 0 && idx < (Int)m_sleepyUpdates.size() && m_sleepyUpdates[idx] == u && u->friend_getObject() == currentObject)
+					own[numOwn++] = u;
 			}
+			std::sort(own, own + numOwn, [](UpdateModulePtr a, UpdateModulePtr b) { return a->friend_getIndexInLogic() < b->friend_getIndexInLogic(); });
+			for (Int k = 0; k < numOwn; ++k)
+				sleepyUpdatesForThisObject[numSUO++] = own[k];
 		}
+#ifdef CONTRA_CHECK_DESTROY_LIST
+		{
+			// the old scan, to prove the new way finds the same modules in the same order (test builds only)
+			Int numOld = 0;
+			for (std::vector<UpdateModulePtr>::iterator it2 = m_sleepyUpdates.begin(); it2 != m_sleepyUpdates.end(); ++it2)
+			{
+				UpdateModulePtr u = *it2;
+				if (u->friend_getObject() == currentObject && numOld < MAX_SUO)
+				{
+					if (numOld >= numSUO || sleepyUpdatesForThisObject[numOld] != u)
+						DEBUG_LOG(("Contra: CHECK_DESTROY_LIST MISMATCH object %d", currentObject->getID()));
+					++numOld;
+				}
+			}
+			if (numOld != numSUO)
+				DEBUG_LOG(("Contra: CHECK_DESTROY_LIST MISMATCH count %d %d", numOld, numSUO));
+		}
+#endif
 
 		for (--numSUO; numSUO >= 0; --numSUO)
 		{
