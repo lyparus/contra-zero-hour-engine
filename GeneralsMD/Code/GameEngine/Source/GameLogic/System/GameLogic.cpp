@@ -2691,6 +2691,16 @@ void GameLogic::processCommandList( CommandList *list )
 
 			if (m_cachedCRCs.size() < numPlayers)
 			{
+				DEBUG_LOG(("Contra: missing CRC at logic frame %u: received %u of %d connected players",
+					m_frame, (unsigned)m_cachedCRCs.size(), numPlayers));
+				for (Int slot = 0; slot < MAX_SLOTS; ++slot)
+				{
+					if (!TheNetwork->isPlayerConnected(slot)) continue;
+					const Player *player = ThePlayerList->getPlayerFromSlotIndex(slot);
+					const Int index = player ? player->getPlayerIndex() : -1;
+					DEBUG_LOG(("Contra: CRC slot %d player %d present %d", slot, index,
+						m_cachedCRCs.find(index) != m_cachedCRCs.end()));
+				}
 				DEBUG_CRASH(("Not enough CRCs!"));
 				sawCRCMismatch = TRUE;
 			}

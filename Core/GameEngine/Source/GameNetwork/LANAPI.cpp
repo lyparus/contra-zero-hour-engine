@@ -38,8 +38,8 @@
 
 
 // Contra: every release that cannot play with the previous one gets its own lobby port, so the versions do not even
-// see each other's games: 8087 = Contra network build up to 1.3, 8090 = 1.4 (deterministic math). Stock: 8086.
-static const UnsignedShort lobbyPort = 8090; ///< This is the UDP port used by all LANAPI communication
+// see each other's games: 8087 = up to 1.3, 8090 = 1.4-1.6, 8091 = x64 catch-up fix. Stock: 8086.
+static const UnsignedShort lobbyPort = 8091; ///< This is the UDP port used by all LANAPI communication
 
 AsciiString GetMessageTypeString(UnsignedInt type);
 

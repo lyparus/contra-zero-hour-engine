@@ -461,7 +461,12 @@ void Network::GetCommandsFromCommandList() {
 		if (isMessageTypeWithinNetworkRange(msg->getType())) {
 			// Is this something we should be sending to the other players?
 			if (m_localStatus == NETLOCALSTATUS_INGAME) {
-				m_conMgr->sendLocalGameMessage(msg, getExecutionFrame());
+				const Int executionFrame = getExecutionFrame();
+				if (msg->getType() == GameMessage::MSG_LOGIC_CRC) {
+					DEBUG_LOG(("Contra: sending CRC at logic frame %u for execution frame %d (run-ahead %d)",
+						TheGameLogic->getFrame(), executionFrame, m_runAhead));
+				}
+				m_conMgr->sendLocalGameMessage(msg, executionFrame);
 			}
 			TheCommandList->removeMessage(msg); // This does not destroy msg's prev and next pointers, so they should still be valid.
 			deleteInstance(msg);

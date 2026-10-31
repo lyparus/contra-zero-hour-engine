@@ -1294,7 +1294,7 @@ UnsignedInt GlobalData::generateExeCRC()
 	// different files, so instead of the CRC of the executable file this is a build compatibility id. Change the
 	// text whenever a release can no longer play with the previous one. Used by the LAN lobby (join check) and replays.
 	{
-		static const char contraCompatibility[] = "Contra network build 1.4: deterministic math (GameMath), x86 and x64";
+		static const char contraCompatibility[] = "Contra network build x64: per-frame catch-up message dispatch";
 		exeCRC.computeCRC(contraCompatibility, sizeof(contraCompatibility) - 1);
 		DEBUG_LOG(("Contra build compatibility CRC is 0x%8.8X", exeCRC.get()));
 	}
