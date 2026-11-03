@@ -960,7 +960,8 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 		{
 			// bah. just play it at the drawable's pos.
 			//DEBUG_LOG(("*** WeaponFireFX not fully handled by the client"));
-			const Coord3D* where = isContactWeapon() ? &targetPos : sourceObj->getDrawable()->getPosition();
+			// A minefield fires at the detonation point, which may be far from the field's centre.
+			const Coord3D* where = (isContactWeapon() || sourceObj->isKindOf(KINDOF_MINE)) ? &targetPos : sourceObj->getDrawable()->getPosition();
 			FXList::doFXPos(fx, where, sourceObj->getDrawable()->getTransformMatrix(), getWeaponSpeed(), &targetPos, getPrimaryDamageRadius(bonus));
 		}
 	}
