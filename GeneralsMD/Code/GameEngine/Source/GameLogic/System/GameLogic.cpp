@@ -4005,9 +4005,10 @@ void GameLogic::update()
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void GameLogic::preUpdate()
+void GameLogic::preUpdate(Bool resetUpdated)
 {
-	m_hasUpdated = FALSE;
+	if (resetUpdated)
+		m_hasUpdated = FALSE;
 
 	if (m_pauseFrame == m_frame && m_pauseFrame != 0)
 	{

@@ -79,7 +79,7 @@ protected:
 
 	virtual void resetSubsystems();
 
-	Bool canUpdateGameLogic(UnsignedInt logicTimeQueryFlags);
+	Bool canUpdateGameLogic(UnsignedInt logicTimeQueryFlags, Bool resetUpdated = TRUE);
 	Bool canUpdateNetworkGameLogic();
 	Bool canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags);
 

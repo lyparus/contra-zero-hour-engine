@@ -100,7 +100,7 @@ public:
 	virtual void reset() override;															///< Reset the logic system
 	virtual void update() override;														///< update the world
 
-	void preUpdate();
+	void preUpdate(Bool resetUpdated = TRUE);
 
 #if defined(RTS_DEBUG)
 	Int getNumberSleepyUpdates() const {return m_sleepyUpdates.size();} //For profiling, so not in Release.

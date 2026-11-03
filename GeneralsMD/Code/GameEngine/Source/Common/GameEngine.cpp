@@ -800,10 +800,10 @@ void GameEngine::resetSubsystems()
 }
 
 /// -----------------------------------------------------------------------------------------------
-Bool GameEngine::canUpdateGameLogic(UnsignedInt logicTimeQueryFlags)
+Bool GameEngine::canUpdateGameLogic(UnsignedInt logicTimeQueryFlags, Bool resetUpdated)
 {
 	// This updates the paused game status of the game logic.
-	TheGameLogic->preUpdate();
+	TheGameLogic->preUpdate(resetUpdated);
 
 	TheFramePacer->setTimeFrozen(isTimeFrozen());
 	TheFramePacer->setGameHalted(isGameHalted());
@@ -1011,7 +1011,8 @@ void GameEngine::update()
 				s_loopPerf.networkMs += s_loopPerf.now() - networkStart;
 			}
 
-			if (!canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
+			// Preserve the update flag when probing an additional network frame.
+			if (!canUpdateGameLogic(FramePacer::IgnoreFrozenTime, logicFrame == 0))
 			{
 				break;
 			}
